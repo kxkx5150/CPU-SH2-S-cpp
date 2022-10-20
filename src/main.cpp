@@ -33,16 +33,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 typedef void (*k_callback)(unsigned int key, unsigned char state);
-// extern int  platform_SetupOpenGL(int w, int h, int fullscreen);
-// extern int  platform_YuiRevokeOGLOnThisThread();
-// extern int  platform_YuiUseOGLOnThisThread();
-// extern void platform_swapBuffers(void);
-// extern int  platform_shouldClose();
-// extern void platform_Close();
-// extern int  platform_Deinit(void);
-// extern void platform_HandleEvent();
-// extern void platform_SetKeyCallback(k_callback call);
-// extern void platform_getFBSize(int *w, int *h);
+
+
 #define AR                (4.0f / 3.0f)
 #define WINDOW_WIDTH      600
 #define WINDOW_HEIGHT     ((int)((float)WINDOW_WIDTH / AR))
@@ -54,25 +46,31 @@ static int Wheight;
 #define OSDCORE_SOFT    2
 #define OSDCORE_NANOVG  3
 #define OSDCORE_DEFAULT OSDCORE_NANOVG
-M68K_struct           *M68KCoreList[]   = {&M68KDummy, &M68KMusashi, NULL};
-SH2Interface_struct   *SH2CoreList[]    = {&SH2KronosInterpreter, &SH2KronosInterpreter, &SH2KronosInterpreter, NULL};
-PerInterface_struct   *PERCoreList[]    = {&PERDummy, &PERLinuxJoy, NULL};
-CDInterface           *CDCoreList[]     = {&DummyCD, &ISOCD, &ArchCD, NULL};
-SoundInterface_struct *SNDCoreList[]    = {&SNDDummy, NULL};
-VideoInterface_struct *VIDCoreList[]    = {&VIDOGL, NULL, NULL};
-static int             fullscreen       = 0;
-static int             scanline         = 0;
-static int             lowres_mode      = 0;
-static char            biospath[256]    = "\0";
-static char            cdpath[256]      = "\0";
-static char            stvgamepath[256] = "\0";
-static char            stvbiospath[256] = "\0";
-static GLFWwindow     *g_window         = NULL;
-static GLFWwindow     *g_offscreen_context;
-static k_callback      k_call = NULL;
-static unsigned char   inputMap[512];
+
+
+M68K_struct           *M68KCoreList[] = {&M68KDummy, &M68KMusashi, NULL};
+SH2Interface_struct   *SH2CoreList[]  = {&SH2KronosInterpreter, &SH2KronosInterpreter, &SH2KronosInterpreter, NULL};
+PerInterface_struct   *PERCoreList[]  = {&PERDummy, &PERLinuxJoy, NULL};
+CDInterface           *CDCoreList[]   = {&DummyCD, &ISOCD, &ArchCD, NULL};
+SoundInterface_struct *SNDCoreList[]  = {&SNDDummy, NULL};
+VideoInterface_struct *VIDCoreList[]  = {&VIDOGL, NULL, NULL};
 yabauseinit_struct     yinit;
-int                    platform_YuiRevokeOGLOnThisThread()
+
+
+static int           fullscreen       = 0;
+static int           scanline         = 0;
+static int           lowres_mode      = 0;
+static char          biospath[256]    = "\0";
+static char          cdpath[256]      = "\0";
+static char          stvgamepath[256] = "\0";
+static char          stvbiospath[256] = "\0";
+static GLFWwindow   *g_window         = NULL;
+static GLFWwindow   *g_offscreen_context;
+static k_callback    k_call = NULL;
+static unsigned char inputMap[512];
+
+
+int platform_YuiRevokeOGLOnThisThread()
 {
 #if defined(YAB_ASYNC_RENDERING)
     glfwMakeContextCurrent(g_offscreen_context);
@@ -127,6 +125,7 @@ int platform_SetupOpenGL(int w, int h, int fullscreen)
     int i;
     if (!glfwInit())
         return 0;
+
     glfwSetErrorCallback(error_callback);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
@@ -139,11 +138,13 @@ int platform_SetupOpenGL(int w, int h, int fullscreen)
     glfwWindowHint(GLFW_ALPHA_BITS, 8);
     glfwWindowHint(GLFW_DEPTH_BITS, 24);
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
+
     g_window = glfwCreateWindow(w, h, "", NULL, NULL);
     if (!g_window) {
         glfwTerminate();
         return 0;
     }
+
     glfwWindowHint(GLFW_VISIBLE, GL_FALSE);
     g_offscreen_context = glfwCreateWindow(w, h, "", NULL, g_window);
     glfwMakeContextCurrent(g_window);
@@ -153,6 +154,7 @@ int platform_SetupOpenGL(int w, int h, int fullscreen)
     glGetIntegerv(GL_MAJOR_VERSION, &maj);
     glGetIntegerv(GL_MINOR_VERSION, &min);
     printf("OpenGL version is %d.%d (%s, %s)\n", maj, min, glGetString(GL_VENDOR), glGetString(GL_RENDERER));
+
     for (i = 0; i < 512; i++)
         inputMap[i] = -1;
     inputMap[GLFW_KEY_UP]    = PERPAD_UP;
@@ -176,6 +178,7 @@ int platform_SetupOpenGL(int w, int h, int fullscreen)
     inputMap[GLFW_KEY_V]     = PERJAMMA_START2;
     inputMap[GLFW_KEY_P]     = PERJAMMA_PAUSE;
     inputMap[GLFW_KEY_M]     = PERJAMMA_MULTICART;
+
     glfwSetKeyCallback(g_window, key_callback);
     return 1;
 }
@@ -282,29 +285,32 @@ int main(int argc, char *argv[])
     yinit.stvgamepath = NULL;
     yinit.vsyncon     = 1;
     SetupOpenGL();
+
     yinit.cdcoretype  = 1;
-    yinit.cdpath      = argv[1];    // argv[1];
+    yinit.cdpath      = argv[1];
     yinit.sndcoretype = 0;
+
     if (YabauseInit(&yinit) != 0) {
         printf("YabauseInit error \n\r");
         return 1;
     }
+
     if (lowres_mode == 0) {
         if (yinit.vidcoretype == VIDCORE_OGL) {
             VIDCore->SetSettingValue(VDP_SETTING_FILTERMODE, AA_BILINEAR_FILTER);
             VIDCore->SetSettingValue(VDP_SETTING_UPSCALMODE, UP_4XBRZ);
-            // VIDCore->SetSettingValue(VDP_SETTING_SCANLINE, scanline);
         }
         VIDCore->Resize(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 1);
     } else {
         if (yinit.vidcoretype == VIDCORE_OGL) {
             VIDCore->SetSettingValue(VDP_SETTING_FILTERMODE, AA_BILINEAR_FILTER);
             VIDCore->SetSettingValue(VDP_SETTING_UPSCALMODE, UP_2XBRZ);
-            // VIDCore->SetSettingValue(VDP_SETTING_SCANLINE, scanline);
         }
         VIDCore->Resize(0, 0, WINDOW_WIDTH_LOW, WINDOW_HEIGHT_LOW, 1);
     }
+
     platform_SetKeyCallback(PERCore->onKeyEvent);
+
     while (!platform_shouldClose()) {
         int height;
         int width;
@@ -318,6 +324,7 @@ int main(int argc, char *argv[])
             platform_Close();
         platform_HandleEvent();
     }
+
     YabauseDeInit();
     platform_Deinit();
     return 0;
