@@ -4,9 +4,7 @@ cmake_minimum_required(VERSION 3.12)
 cmake_policy(VERSION 3.12)
 set(CMAKE_C_STANDARD 11) 
 set(CMAKE_CXX_STANDARD 11)
-
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/exe)
-
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g -ffast-math")
@@ -15,8 +13,6 @@ set(CMAKE_C_FLAGS_RELEASE "-O3 -ffast-math -DNDEBUG -s -fomit-frame-pointer -mar
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -ffast-math -fpermissive -Wno-write-strings -Wno-literal-suffix")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DNDEBUG -s -fomit-frame-pointer -march=native -funroll-loops -fno-PIE -no-pie -mfpmath=sse -m64 -fpermissive -Wno-write-strings -Wno-literal-suffix")
-
-
 set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} "-lm")
 
 add_definitions(-DIMPROVED_SAVESTATES)
@@ -33,7 +29,6 @@ option(YAB_WANT_ASYNC_CELL "Enable Threaded rendering of nbgx cells" ON)
 option(YAB_WANT_ASYNC_RGB "Enable Threaded rendering of rgb0" ON)
 option(YAB_WANT_ASYNC_VDP1_TEXTURE "Enable Threaded rendering of vdp1 texture" ON)
 option(YAB_FORCE_SECURE_STRINGS "Turns all string format warnings into errors." OFF)
-
 
 include(CheckCSourceCompiles)
 include(CheckFunctionExists)
@@ -61,8 +56,6 @@ set(kronos_HEADERS
     src/core/vdp1.h
     src/core/vdp2.h
     src/core/sh2/sh2core.h
-    # src/core/sh2/sh2iasm.h
-    # src/core/sh2/sh-opc.h
     src/core/scu.h
     src/core/scsp/scsp.h
     src/core/scsp/scspdsp.h
@@ -95,7 +88,6 @@ set(kronos_SOURCES
     src/core/vdp1.cpp
     src/core/vdp2.cpp
     src/core/sh2/sh2core.cpp
-    # src/core/sh2/sh2iasm.cpp
     src/core/scu.cpp
     src/core/scsp/scsp.cpp
     src/core/scsp/scspdsp.cpp
@@ -142,6 +134,7 @@ endif()
 if(UNIX)
     set(KRONOS_LIBRARIES ${KRONOS_LIBRARIES} "m")
 endif()
+
 
 add_subdirectory(src/tools/libchdr)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/tools/libchdr/src)
@@ -216,15 +209,6 @@ if(OPENGL_SUPPORTED)
         add_definitions(-DHAVE_GLXGETPROCADDRESS=1)
     endif()
 
-    if(NEED_GLEW)
-        include(FindGLEW)
-        add_definitions(-D_USEGLEW_)
-        add_definitions(-DGLEW_STATIC)
-        find_package(GLEW REQUIRED)
-        include_directories(${GLEW_INCLUDE_DIRS})
-        link_libraries(${GLEW_LIBRARIES})
-    endif(NEED_GLEW)
-
     set(kronos_SOURCES
         ${kronos_SOURCES}
         src/core/video/common/commongl.cpp
@@ -296,17 +280,29 @@ set(kronos_SOURCES ${kronos_SOURCES} src/ctrl/thr-linux.cpp src/core/cd-linux.cp
 set(kronos_SOURCES ${kronos_SOURCES} src/core/peripheral/perlinuxjoy.cpp)
 set(kronos_HEADERS ${kronos_HEADERS} src/core/peripheral/perlinuxjoy.h)
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(GLFW REQUIRED glfw3)
-
-set(PORT_INCLUDE_DIRS ${PORT_INCLUDE_DIRS} ${OPENGLES_INCLUDE_DIR})
-set(PORT_LIBRARIES ${PORT_LIBRARIES} ${OPENGLES2_LIBRARIES})
-
-if(GLFW_FOUND)
-	set(PORT_INCLUDE_DIRS ${GLFW_INCLUDE_DIRS})
-	set(PORT_LIBRARIES ${GLFW_LIBRARIES})
-endif(GLFW_FOUND)
 
 add_executable(kronos ${kronos_SOURCES} ${kronos_HEADERS} src/main.cpp)
 target_link_libraries(kronos ${KRONOS_LIBRARIES} ${PORT_LIBRARIES})
 add_dependencies(kronos m68kmake)
+
+# glfw
+find_package(glfw3 REQUIRED)
+include_directories(${GLFW_INCLUDE_DIRS})
+link_libraries(${GLFW_LIBRARY_DIRS})
+
+# opengl
+find_package(OpenGL REQUIRED)
+include_directories(${OPENGL_INCLUDE_DIRS})
+
+# glew
+find_package(GLEW REQUIRED)
+include_directories(${GLEW_INCLUDE_DIRS})
+add_definitions(-D_USEGLEW_)
+add_definitions(-DGLEW_STATIC)
+
+target_link_libraries(${PROJECT_NAME} 
+${OPENGL_LIBRARIES}
+${GLEW_LIBRARIES}
+${EXTRA_LIBS}
+glfw SDL2_image SDL2_ttf SDL2 SDL2main
+)

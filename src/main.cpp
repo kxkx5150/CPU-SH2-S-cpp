@@ -1,9 +1,13 @@
+#include <cstdlib>
 #define PLATFORM_LINUX
 #include <assert.h>
 #include <stdio.h>
 #include <sys/time.h>
 #include <unistd.h>
-// #include "gameinfo.h"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_keycode.h>
+
 #include "sh2core.h"
 #include "sh2int_kronos.h"
 #include "yui.h"
@@ -30,9 +34,6 @@
 #endif
 #include <stdio.h>
 #include "sh2core.h"
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
-typedef void (*k_callback)(unsigned int key, unsigned char state);
 
 
 #define AR                (4.0f / 3.0f)
@@ -40,13 +41,14 @@ typedef void (*k_callback)(unsigned int key, unsigned char state);
 #define WINDOW_HEIGHT     ((int)((float)WINDOW_WIDTH / AR))
 #define WINDOW_WIDTH_LOW  300
 #define WINDOW_HEIGHT_LOW ((int)((float)WINDOW_WIDTH_LOW / AR))
-static int Wwidth;
-static int Wheight;
-#define OSDCORE_DUMMY   0
-#define OSDCORE_SOFT    2
-#define OSDCORE_NANOVG  3
-#define OSDCORE_DEFAULT OSDCORE_NANOVG
+#define SCALE             1
+#define OSDCORE_DUMMY     0
+#define OSDCORE_SOFT      2
+#define OSDCORE_NANOVG    3
+#define OSDCORE_DEFAULT   OSDCORE_NANOVG
 
+
+typedef void (*k_callback)(unsigned int key, unsigned char state);
 
 M68K_struct           *M68KCoreList[] = {&M68KDummy, &M68KMusashi, NULL};
 SH2Interface_struct   *SH2CoreList[]  = {&SH2KronosInterpreter, &SH2KronosInterpreter, &SH2KronosInterpreter, NULL};
@@ -56,7 +58,13 @@ SoundInterface_struct *SNDCoreList[]  = {&SNDDummy, NULL};
 VideoInterface_struct *VIDCoreList[]  = {&VIDOGL, NULL, NULL};
 yabauseinit_struct     yinit;
 
+SDL_Window   *m_context   = nullptr;
+SDL_GLContext m_glcontext = nullptr;
+SDL_Renderer *renderer    = nullptr;
+bool          Running     = true;
 
+static int           Wwidth;
+static int           Wheight;
 static int           fullscreen       = 0;
 static int           scanline         = 0;
 static int           lowres_mode      = 0;
@@ -64,142 +72,46 @@ static char          biospath[256]    = "\0";
 static char          cdpath[256]      = "\0";
 static char          stvgamepath[256] = "\0";
 static char          stvbiospath[256] = "\0";
-static GLFWwindow   *g_window         = NULL;
-static GLFWwindow   *g_offscreen_context;
-static k_callback    k_call = NULL;
+static k_callback    k_call           = NULL;
 static unsigned char inputMap[512];
 
 
 int platform_YuiRevokeOGLOnThisThread()
 {
 #if defined(YAB_ASYNC_RENDERING)
-    glfwMakeContextCurrent(g_offscreen_context);
+    // glfwMakeContextCurrent(g_offscreen_context);
 #endif
     return 0;
 }
 int platform_YuiUseOGLOnThisThread()
 {
 #if defined(YAB_ASYNC_RENDERING)
-    glfwMakeContextCurrent(g_window);
+    // glfwMakeContextCurrent(g_window);
 #endif
     return 0;
 }
 void platform_swapBuffers(void)
 {
-    if (g_window == NULL) {
+    if (!m_context)
         return;
-    }
-    glfwSwapBuffers(g_window);
-}
-static void error_callback(int error, const char *description)
-{
-    fputs(description, stderr);
-}
-static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
-{
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GL_TRUE);
-    if (k_call != NULL) {
-        switch (action) {
-            case GLFW_RELEASE:
-                k_call(inputMap[key], 0);
-                break;
-            case GLFW_PRESS:
-                k_call(inputMap[key], 1);
-                break;
-            case GLFW_REPEAT:
-                k_call(inputMap[key], 0);
-                k_call(inputMap[key], 1);
-                break;
-            default:
-                break;
-        }
-    }
+    SDL_GL_SwapWindow(m_context);
 }
 void platform_getFBSize(int *w, int *h)
 {
-    glfwGetFramebufferSize(g_window, w, h);
-}
-int platform_SetupOpenGL(int w, int h, int fullscreen)
-{
-    int i;
-    if (!glfwInit())
-        return 0;
-
-    glfwSetErrorCallback(error_callback);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_RED_BITS, 8);
-    glfwWindowHint(GLFW_GREEN_BITS, 8);
-    glfwWindowHint(GLFW_BLUE_BITS, 8);
-    glfwWindowHint(GLFW_ALPHA_BITS, 8);
-    glfwWindowHint(GLFW_DEPTH_BITS, 24);
-    glfwWindowHint(GLFW_STENCIL_BITS, 8);
-
-    g_window = glfwCreateWindow(w, h, "", NULL, NULL);
-    if (!g_window) {
-        glfwTerminate();
-        return 0;
-    }
-
-    glfwWindowHint(GLFW_VISIBLE, GL_FALSE);
-    g_offscreen_context = glfwCreateWindow(w, h, "", NULL, g_window);
-    glfwMakeContextCurrent(g_window);
-    glfwSwapInterval(0);
-    glewExperimental = GL_TRUE;
-    int maj, min;
-    glGetIntegerv(GL_MAJOR_VERSION, &maj);
-    glGetIntegerv(GL_MINOR_VERSION, &min);
-    printf("OpenGL version is %d.%d (%s, %s)\n", maj, min, glGetString(GL_VENDOR), glGetString(GL_RENDERER));
-
-    for (i = 0; i < 512; i++)
-        inputMap[i] = -1;
-    inputMap[GLFW_KEY_UP]    = PERPAD_UP;
-    inputMap[GLFW_KEY_RIGHT] = PERPAD_RIGHT;
-    inputMap[GLFW_KEY_DOWN]  = PERPAD_DOWN;
-    inputMap[GLFW_KEY_LEFT]  = PERPAD_LEFT;
-    inputMap[GLFW_KEY_R]     = PERPAD_RIGHT_TRIGGER;
-    inputMap[GLFW_KEY_F]     = PERPAD_LEFT_TRIGGER;
-    inputMap[GLFW_KEY_SPACE] = PERPAD_START;
-    inputMap[GLFW_KEY_Q]     = PERPAD_A;
-    inputMap[GLFW_KEY_S]     = PERPAD_B;
-    inputMap[GLFW_KEY_D]     = PERPAD_C;
-    inputMap[GLFW_KEY_A]     = PERPAD_X;
-    inputMap[GLFW_KEY_Z]     = PERPAD_Y;
-    inputMap[GLFW_KEY_E]     = PERPAD_Z;
-    inputMap[GLFW_KEY_G]     = PERJAMMA_SERVICE;
-    inputMap[GLFW_KEY_T]     = PERJAMMA_TEST;
-    inputMap[GLFW_KEY_Y]     = PERJAMMA_COIN1;
-    inputMap[GLFW_KEY_H]     = PERJAMMA_COIN2;
-    inputMap[GLFW_KEY_C]     = PERJAMMA_START1;
-    inputMap[GLFW_KEY_V]     = PERJAMMA_START2;
-    inputMap[GLFW_KEY_P]     = PERJAMMA_PAUSE;
-    inputMap[GLFW_KEY_M]     = PERJAMMA_MULTICART;
-
-    glfwSetKeyCallback(g_window, key_callback);
-    return 1;
+    // glfwGetFramebufferSize(g_window, w, h);
 }
 int platform_shouldClose()
 {
-    return glfwWindowShouldClose(g_window);
+    return Running;
 }
 void platform_Close()
 {
-    glfwSetWindowShouldClose(g_window, GL_TRUE);
-}
-int platform_Deinit(void)
-{
-    glfwDestroyWindow(g_window);
-    glfwDestroyWindow(g_offscreen_context);
-    glfwTerminate();
-    return 0;
+    Running = 0;
+    // glfwSetWindowShouldClose(g_window, GL_TRUE);
 }
 void platform_HandleEvent(void)
 {
-    glfwPollEvents();
+    // glfwPollEvents();
 }
 void platform_SetKeyCallback(k_callback call)
 {
@@ -228,7 +140,9 @@ int YuiUseOGLOnThisThread()
 }
 void YuiSwapBuffers(void)
 {
-    platform_swapBuffers();
+    if (!m_context)
+        return;
+    SDL_GL_SwapWindow(m_context);
 }
 int YuiGetFB(void)
 {
@@ -257,24 +171,121 @@ void YuiInit()
     yinit.numthreads    = 4;
     yinit.usecache      = 0;
 }
-static int SetupOpenGL()
+int platform_SetupSDL2(int w, int h, int fullscreen)
 {
-    int w   = (lowres_mode == 0) ? WINDOW_WIDTH : WINDOW_WIDTH_LOW;
-    int h   = (lowres_mode == 0) ? WINDOW_HEIGHT : WINDOW_HEIGHT_LOW;
-    Wwidth  = w;
-    Wheight = h;
-    if (!platform_SetupOpenGL(w, h, fullscreen))
-        exit(EXIT_FAILURE);
+    SDL_Init(SDL_INIT_EVERYTHING);
+    m_context = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w * SCALE, h * SCALE,
+                                 SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+    renderer  = SDL_CreateRenderer(m_context, -1, 0);
+    SDL_RenderSetScale(renderer, SCALE, SCALE);
+    SDL_SetRenderTarget(renderer, NULL);
+    m_glcontext = SDL_GL_CreateContext(m_context);
+    glewInit();
 
-    return 0;
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+    // SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+    // SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+    // SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+    SDL_GL_SetSwapInterval(0);
+    int maj, min;
+    glGetIntegerv(GL_MAJOR_VERSION, &maj);
+    glGetIntegerv(GL_MINOR_VERSION, &min);
+    printf("OpenGL version is %d.%d (%s, %s)\n", maj, min, glGetString(GL_VENDOR), glGetString(GL_RENDERER));
+    return 1;
 }
-void initEmulation()
+void keyPressEvent(SDL_Keycode sdlkey)
 {
-    YuiInit();
-    SetupOpenGL();
-    if (YabauseSh2Init(&yinit) != 0) {
-        printf("YabauseSh2Init error \n\r");
-        return;
+    if (k_call) {
+        switch (sdlkey) {
+            case SDLK_RETURN:
+                k_call(PERPAD_START, 1);
+                break;
+
+            case SDLK_UP:
+                k_call(PERPAD_UP, 1);
+                break;
+            case SDLK_DOWN:
+                k_call(PERPAD_DOWN, 1);
+                break;
+            case SDLK_LEFT:
+                k_call(PERPAD_LEFT, 1);
+                break;
+            case SDLK_RIGHT:
+                k_call(PERPAD_RIGHT, 1);
+                break;
+            case SDLK_a:
+                k_call(PERPAD_A, 1);
+                break;
+            case SDLK_s:
+                k_call(PERPAD_B, 1);
+                break;
+            case SDLK_z:
+                k_call(PERPAD_C, 1);
+                break;
+            case SDLK_x:
+                k_call(PERPAD_X, 1);
+                break;
+            case SDLK_q:
+                k_call(PERPAD_Y, 1);
+                break;
+            case SDLK_w:
+                k_call(PERPAD_Z, 1);
+                break;
+        }
+    }
+}
+void keyReleaseEvent(SDL_Keycode sdlkey)
+{
+    if (k_call) {
+        switch (sdlkey) {
+            case SDLK_RETURN:
+                k_call(PERPAD_START, 0);
+                break;
+            case SDLK_UP:
+                k_call(PERPAD_UP, 0);
+                break;
+            case SDLK_DOWN:
+                k_call(PERPAD_DOWN, 0);
+                break;
+            case SDLK_LEFT:
+                k_call(PERPAD_LEFT, 0);
+                break;
+            case SDLK_RIGHT:
+                k_call(PERPAD_RIGHT, 0);
+                break;
+            case SDLK_a:
+                k_call(PERPAD_A, 0);
+                break;
+            case SDLK_s:
+                k_call(PERPAD_B, 0);
+                break;
+            case SDLK_z:
+                k_call(PERPAD_C, 0);
+                break;
+            case SDLK_x:
+                k_call(PERPAD_X, 0);
+                break;
+            case SDLK_q:
+                k_call(PERPAD_Y, 0);
+                break;
+            case SDLK_w:
+                k_call(PERPAD_Z, 0);
+                break;
+        }
     }
 }
 int main(int argc, char *argv[])
@@ -284,11 +295,22 @@ int main(int argc, char *argv[])
     yinit.stvbiospath = NULL;
     yinit.stvgamepath = NULL;
     yinit.vsyncon     = 1;
-    SetupOpenGL();
+
+    int w   = (lowres_mode == 0) ? WINDOW_WIDTH : WINDOW_WIDTH_LOW;
+    int h   = (lowres_mode == 0) ? WINDOW_HEIGHT : WINDOW_HEIGHT_LOW;
+    Wwidth  = w;
+    Wheight = h;
+
+    if (!platform_SetupSDL2(w, h, fullscreen))
+        exit(EXIT_FAILURE);
 
     yinit.cdcoretype  = 1;
     yinit.cdpath      = argv[1];
     yinit.sndcoretype = 0;
+
+    // yinit.carttype    = CART_DRAM8MBIT;
+    // yinit.stvgamepath = argv[1];
+
 
     if (YabauseInit(&yinit) != 0) {
         printf("YabauseInit error \n\r");
@@ -311,21 +333,27 @@ int main(int argc, char *argv[])
 
     platform_SetKeyCallback(PERCore->onKeyEvent);
 
-    while (!platform_shouldClose()) {
-        int height;
-        int width;
-        platform_getFBSize(&width, &height);
-        if ((Wwidth != width) || (Wheight != height)) {
-            Wwidth  = width;
-            Wheight = height;
-            VIDCore->Resize(0, 0, Wwidth, Wheight, 1);
-        }
+    SDL_Event Event;
+    while (Running) {
         if (YabauseExec() == -1)
-            platform_Close();
-        platform_HandleEvent();
-    }
+            break;
 
-    YabauseDeInit();
-    platform_Deinit();
+        while (SDL_PollEvent(&Event)) {
+            switch (Event.type) {
+                case SDL_QUIT:
+                    Running = 0;
+                    break;
+                case SDL_KEYDOWN:
+                    keyPressEvent(Event.key.keysym.sym);
+                    break;
+                case SDL_KEYUP:
+                    keyReleaseEvent(Event.key.keysym.sym);
+                    break;
+            }
+        }
+    }
+    // YabauseDeInit();
+    SDL_Quit();
+    printf("finish\n");
     return 0;
 }
