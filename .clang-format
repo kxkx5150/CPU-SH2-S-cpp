@@ -44,4 +44,4 @@ SpaceBeforeParens: ControlStatements
 SpacesBeforeTrailingComments: 4
 
 
-MaxEmptyLinesToKeep: 5
+MaxEmptyLinesToKeep: 1
