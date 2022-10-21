@@ -1,5 +1,9 @@
 # CPU-SH2-S-cpp
 
+HITACHI (Renesas Electronics)
+
+<br><br>
+
 ## Sega Saturn emulator
 
 <br><br><br>
@@ -15,6 +19,12 @@ sudo apt-get install libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net
 </pre>
 
 <br><br><br>
+
+
+
+https://user-images.githubusercontent.com/10168979/197234923-c1149575-fe8f-4c6b-88c0-ddb2e9a01ca9.mp4
+
+
 
 use [Kronos](https://github.com/FCare/Kronos) as a reference
 
