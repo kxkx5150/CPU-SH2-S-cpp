@@ -1,23 +1,3 @@
-/*  Copyright 2003-2005 Guillaume Duhamel
-    Copyright 2004-2006, 2013 Theo Berkau
-
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
-
 #ifndef SH2CORE_H
 #define SH2CORE_H
 
@@ -35,10 +15,8 @@ extern "C" {
 #undef MACH
 #endif
 
-//#define DMPHISTORY
 #define MAX_DMPHISTORY (512)
 
-// UBC Flags
 #define BBR_CPA_NONE (0 << 6)
 #define BBR_CPA_CPU  (1 << 6)
 #define BBR_CPA_PER  (2 << 6)
@@ -114,22 +92,22 @@ typedef struct
 
 typedef struct
 {
-    u8 SMR;      // 0xFFFFFE00
-    u8 BRR;      // 0xFFFFFE01
-    u8 SCR;      // 0xFFFFFE02
-    u8 TDR;      // 0xFFFFFE03
-    u8 SSR;      // 0xFFFFFE04
-    u8 RDR;      // 0xFFFFFE05
-    u8 TIER;     // 0xFFFFFE10
-    u8 FTCSR;    // 0xFFFFFE11
+    u8 SMR;
+    u8 BRR;
+    u8 SCR;
+    u8 TDR;
+    u8 SSR;
+    u8 RDR;
+    u8 TIER;
+    u8 FTCSR;
 
 #ifdef WORDS_BIGENDIAN
     union
     {
         struct
         {
-            u16 H : 8;    // 0xFFFFFE12
-            u16 L : 8;    // 0xFFFFFE13
+            u16 H : 8;
+            u16 L : 8;
         } part;
         u16 all;
     } FRC;
@@ -138,48 +116,47 @@ typedef struct
     {
         struct
         {
-            u16 L : 8;    // 0xFFFFFE13
-            u16 H : 8;    // 0xFFFFFE12
+            u16 L : 8;
+            u16 H : 8;
         } part;
         u16 all;
     } FRC;
 #endif
-    u16 OCRA;       // 0xFFFFFE14/0xFFFFFE15
-    u16 OCRB;       // 0xFFFFFE14/0xFFFFFE15
-    u8  TCR;        // 0xFFFFFE16
-    u8  TOCR;       // 0xFFFFFE17
-    u16 FICR;       // 0xFFFFFE18
-                    // 0xFFFFFE19
-    u16 IPRB;       // 0xFFFFFE60
-    u16 VCRA;       // 0xFFFFFE62
-    u16 VCRB;       // 0xFFFFFE64
-    u16 VCRC;       // 0xFFFFFE66
-    u16 VCRD;       // 0xFFFFFE68
-    u8  DRCR0;      // 0xFFFFFE71
-    u8  DRCR1;      // 0xFFFFFE72
-    u8  WTCSR;      // 0xFFFFFE80
-    u8  WTCNT;      // 0xFFFFFE81
-    u8  RSTCSR;     // 0xFFFFFE83
-    u8  SBYCR;      // 0xFFFFFE91
-    u8  CCR;        // 0xFFFFFE92
-    u16 ICR;        // 0xFFFFFEE0
-    u16 IPRA;       // 0xFFFFFEE2
-    u16 VCRWDT;     // 0xFFFFFEE4
-    u32 DVSR;       // 0xFFFFFF00
-    u32 DVDNT;      // 0xFFFFFF04
-    u32 DVCR;       // 0xFFFFFF08
-    u32 VCRDIV;     // 0xFFFFFF0C
-    u32 DVDNTH;     // 0xFFFFFF10
-    u32 DVDNTL;     // 0xFFFFFF14
-    u32 DVDNTUH;    // 0xFFFFFF18
-    u32 DVDNTUL;    // 0xFFFFFF1C
+    u16 OCRA;
+    u16 OCRB;
+    u8  TCR;
+    u8  TOCR;
+    u16 FICR;
+    u16 IPRB;
+    u16 VCRA;
+    u16 VCRB;
+    u16 VCRC;
+    u16 VCRD;
+    u8  DRCR0;
+    u8  DRCR1;
+    u8  WTCSR;
+    u8  WTCNT;
+    u8  RSTCSR;
+    u8  SBYCR;
+    u8  CCR;
+    u16 ICR;
+    u16 IPRA;
+    u16 VCRWDT;
+    u32 DVSR;
+    u32 DVDNT;
+    u32 DVCR;
+    u32 VCRDIV;
+    u32 DVDNTH;
+    u32 DVDNTL;
+    u32 DVDNTUH;
+    u32 DVDNTUL;
 #ifdef WORDS_BIGENDIAN
     union
     {
         struct
         {
-            u32 H : 16;    // 0xFFFFFF40
-            u32 L : 16;    // 0xFFFFFF42
+            u32 H : 16;
+            u32 L : 16;
         } part;
         u16 all;
     } BARA;
@@ -188,8 +165,8 @@ typedef struct
     {
         struct
         {
-            u32 H : 16;    // 0xFFFFFF44
-            u32 L : 16;    // 0xFFFFFF46
+            u32 H : 16;
+            u32 L : 16;
         } part;
         u16 all;
     } BAMRA;
@@ -198,8 +175,8 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0xFFFFFF42
-            u32 H : 16;    // 0xFFFFFF40
+            u32 L : 16;
+            u32 H : 16;
         } part;
         u16 all;
     } BARA;
@@ -208,20 +185,20 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0xFFFFFF46
-            u32 H : 16;    // 0xFFFFFF44
+            u32 L : 16;
+            u32 H : 16;
         } part;
         u16 all;
     } BAMRA;
 #endif
-    u32 BBRA;    // 0xFFFFFF48
+    u32 BBRA;
 #ifdef WORDS_BIGENDIAN
     union
     {
         struct
         {
-            u32 H : 16;    // 0xFFFFFF60
-            u32 L : 16;    // 0xFFFFFF62
+            u32 H : 16;
+            u32 L : 16;
         } part;
         u16 all;
     } BARB;
@@ -230,8 +207,8 @@ typedef struct
     {
         struct
         {
-            u32 H : 16;    // 0xFFFFFF64
-            u32 L : 16;    // 0xFFFFFF66
+            u32 H : 16;
+            u32 L : 16;
         } part;
         u16 all;
     } BAMRB;
@@ -240,8 +217,8 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0xFFFFFF62
-            u32 H : 16;    // 0xFFFFFF60
+            u32 L : 16;
+            u32 H : 16;
         } part;
         u16 all;
     } BARB;
@@ -250,20 +227,20 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0xFFFFFF66
-            u32 H : 16;    // 0xFFFFFF64
+            u32 L : 16;
+            u32 H : 16;
         } part;
         u16 all;
     } BAMRB;
 #endif
-    u32 BBRB;    // 0xFFFFFF68
+    u32 BBRB;
 #ifdef WORDS_BIGENDIAN
     union
     {
         struct
         {
-            u32 H : 16;    // 0xFFFFFF70
-            u32 L : 16;    // 0xFFFFFF72
+            u32 H : 16;
+            u32 L : 16;
         } part;
         u16 all;
     } BDRB;
@@ -272,8 +249,8 @@ typedef struct
     {
         struct
         {
-            u32 H : 16;    // 0xFFFFFF74
-            u32 L : 16;    // 0xFFFFFF76
+            u32 H : 16;
+            u32 L : 16;
         } part;
         u16 all;
     } BDMRB;
@@ -282,8 +259,8 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0xFFFFFF72
-            u32 H : 16;    // 0xFFFFFF70
+            u32 L : 16;
+            u32 H : 16;
         } part;
         u16 all;
     } BDRB;
@@ -292,32 +269,32 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0xFFFFFF76
-            u32 H : 16;    // 0xFFFFFF74
+            u32 L : 16;
+            u32 H : 16;
         } part;
         u16 all;
     } BDMRB;
 #endif
-    u32 BRCR;     // 0xFFFFFF78
-    u32 SAR0;     // 0xFFFFFF80
-    u32 DAR0;     // 0xFFFFFF84
-    u32 TCR0;     // 0xFFFFFF88
-    u32 CHCR0;    // 0xFFFFFF8C
-    u32 SAR1;     // 0xFFFFFF90
-    u32 DAR1;     // 0xFFFFFF94
-    u32 TCR1;     // 0xFFFFFF98
-    u32 CHCR1;    // 0xFFFFFF9C
+    u32 BRCR;
+    u32 SAR0;
+    u32 DAR0;
+    u32 TCR0;
+    u32 CHCR0;
+    u32 SAR1;
+    u32 DAR1;
+    u32 TCR1;
+    u32 CHCR1;
     u32 CHCR1M;
-    u32 VCRDMA0;    // 0xFFFFFFA0
-    u32 VCRDMA1;    // 0xFFFFFFA8
-    u32 DMAOR;      // 0xFFFFFFB0
-    u16 BCR1;       // 0xFFFFFFE0
-    u16 BCR2;       // 0xFFFFFFE4
-    u16 WCR;        // 0xFFFFFFE8
-    u16 MCR;        // 0xFFFFFFEC
-    u16 RTCSR;      // 0xFFFFFFF0
-    u16 RTCNT;      // 0xFFFFFFF4
-    u16 RTCOR;      // 0xFFFFFFF8
+    u32 VCRDMA0;
+    u32 VCRDMA1;
+    u32 DMAOR;
+    u16 BCR1;
+    u16 BCR2;
+    u16 WCR;
+    u16 MCR;
+    u16 RTCSR;
+    u16 RTCNT;
+    u16 RTCOR;
 } Onchip_struct;
 
 typedef struct
@@ -351,17 +328,6 @@ typedef struct
     u32 addr[256];
     int numbacktrace;
 } backtrace_struct;
-// typedef struct
-// {
-//     codebreakpoint_struct   codebreakpoint[MAX_BREAKPOINTS];
-//     int                     numcodebreakpoints;
-//     memorybreakpoint_struct memorybreakpoint[MAX_BREAKPOINTS];
-//     int                     nummemorybreakpoints;
-//     void (*BreakpointCallBack)(void *, u32, void *);
-//     void *BreakpointUserData;
-//     int   inbreakpoint;
-//     int   breaknow;
-// } breakpoint_struct;
 
 typedef struct SH2_struct_s
 {
@@ -401,14 +367,12 @@ typedef struct SH2_struct_s
 
     void *ext;
 
-    u8 cacheOn;
-    // #ifdef USE_CACHE
+    u8  cacheOn;
     u8  nbCacheWay;
     u8  cacheLRU[64];
     u8  cacheData[64][4][16];
     u8  tagWay[64][0x80000];
     u32 cacheTagArray[64][4];
-    // #endif
     u32 cycleFrac;
     u32 cycleLost;
     int cdiff;
@@ -419,9 +383,7 @@ typedef struct SH2_struct_s
     Dmac dma_ch0;
     Dmac dma_ch1;
 
-    // DEBUG Stuff
     backtrace_struct bt;
-    // breakpoint_struct bp;
     struct
     {
         u8              enabled;
@@ -440,7 +402,6 @@ typedef struct SH2_struct_s
             u32 address;
         };
     } stepOverOut;
-    // ENd debug
 } SH2_struct;
 
 typedef struct
@@ -506,14 +467,13 @@ void SH2DumpHistory(SH2_struct *context);
 int BackupHandled(SH2_struct *sh, u32 addr);
 int isBackupHandled(u32 addr);
 
-#ifdef USE_CACHE
 u8   CacheReadByte(SH2_struct *context, u8 *mem, u32 addr);
 u16  CacheReadWord(SH2_struct *context, u8 *mem, u32 addr);
 u32  CacheReadLong(SH2_struct *context, u8 *mem, u32 addr);
 void CacheWriteByte(SH2_struct *context, u8 *mem, u32 addr, u8 val);
 void CacheWriteShort(SH2_struct *context, u8 *mem, u32 addr, u16 val);
 void CacheWriteLong(SH2_struct *context, u8 *mem, u32 addr, u32 val);
-#endif
+
 void CacheInvalidate(SH2_struct *context, u32 addr);
 
 void DMAExec(SH2_struct *context);
@@ -540,7 +500,7 @@ void FASTCALL MSH2InputCaptureWriteWord(SH2_struct *context, UNUSED u8 *mem, u32
 void FASTCALL SSH2InputCaptureWriteWord(SH2_struct *context, UNUSED u8 *mem, u32 addr, u16 data);
 
 int SH2SaveState(SH2_struct *context, void **stream);
-int SH2LoadState(SH2_struct *context, FILE *fp, int version, int size);
+int SH2LoadState(SH2_struct *context, const void *stream, UNUSED int version, int size);
 
 extern SH2Interface_struct SH2Dyn;
 extern SH2Interface_struct SH2DynDebug;

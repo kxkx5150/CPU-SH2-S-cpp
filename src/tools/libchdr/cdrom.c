@@ -1,99 +1,38 @@
-/* license:BSD-3-Clause
- * copyright-holders:Aaron Giles
-***************************************************************************
-
-    cdrom.c
-
-    Generic MAME CD-ROM utilties - build IDE and SCSI CD-ROMs on top of this
-
-****************************************************************************
-
-    IMPORTANT:
-    "physical" block addresses are the actual addresses on the emulated CD.
-    "chd" block addresses are the block addresses in the CHD file.
-    Because we pad each track to a 4-frame boundary, these addressing
-    schemes will differ after track 1!
-
-***************************************************************************/
 
 #include <assert.h>
 #include <string.h>
 
 #include "cdrom.h"
 
-/***************************************************************************
-    DEBUGGING
-***************************************************************************/
 
-/** @brief  The verbose. */
 #define VERBOSE (0)
 #if VERBOSE
 
-/**
- * @def LOG(x) do
- *
- * @brief   A macro that defines log.
- *
- * @param   x   The void to process.
- */
 
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
 
-/**
- * @fn  void CLIB_DECL logerror(const char *text, ...) ATTR_PRINTF(1,2);
- *
- * @brief   Logerrors the given text.
- *
- * @param   text    The text.
- *
- * @return  A CLIB_DECL.
- */
 
 void CLIB_DECL logerror(const char *text, ...) ATTR_PRINTF(1,2);
 #else
 
-/**
- * @def LOG(x);
- *
- * @brief   A macro that defines log.
- *
- * @param   x   The void to process.
- */
 
 #define LOG(x)
 #endif
 
-/***************************************************************************
-    CONSTANTS
-***************************************************************************/
 
-/** @brief  offset within sector. */
 #define SYNC_OFFSET 0x000
-/** @brief  12 bytes. */
 #define SYNC_NUM_BYTES 12
 
-/** @brief  offset within sector. */
 #define MODE_OFFSET 0x00f
 
-/** @brief  offset within sector. */
 #define ECC_P_OFFSET 0x81c
-/** @brief  2 lots of 86. */
 #define ECC_P_NUM_BYTES 86
-/** @brief  24 bytes each. */
 #define ECC_P_COMP 24
 
-/** @brief  The ECC q offset. */
 #define ECC_Q_OFFSET (ECC_P_OFFSET + 2 * ECC_P_NUM_BYTES)
-/** @brief  2 lots of 52. */
 #define ECC_Q_NUM_BYTES 52
-/** @brief  43 bytes each. */
 #define ECC_Q_COMP 43
 
-/**
- * @brief   -------------------------------------------------
- *            ECC lookup tables pre-calculated tables for ECC data calcs
- *          -------------------------------------------------.
- */
 
 static const uint8_t ecclow[256] =
 {
@@ -115,7 +54,6 @@ static const uint8_t ecclow[256] =
 	0xfd, 0xff, 0xf9, 0xfb, 0xf5, 0xf7, 0xf1, 0xf3, 0xed, 0xef, 0xe9, 0xeb, 0xe5, 0xe7, 0xe1, 0xe3
 };
 
-/** @brief  The ecchigh[ 256]. */
 static const uint8_t ecchigh[256] =
 {
 	0x00, 0xf4, 0xf5, 0x01, 0xf7, 0x03, 0x02, 0xf6, 0xf3, 0x07, 0x06, 0xf2, 0x04, 0xf0, 0xf1, 0x05,
@@ -136,12 +74,6 @@ static const uint8_t ecchigh[256] =
 	0x50, 0xa4, 0xa5, 0x51, 0xa7, 0x53, 0x52, 0xa6, 0xa3, 0x57, 0x56, 0xa2, 0x54, 0xa0, 0xa1, 0x55
 };
 
-/**
- * @brief   -------------------------------------------------
- *            poffsets - each row represents the addresses used to calculate a byte of the ECC P
- *            data 86 (*2) ECC P bytes, 24 values represented by each
- *          -------------------------------------------------.
- */
 
 static const uint16_t poffsets[ECC_P_NUM_BYTES][ECC_P_COMP] =
 {
@@ -233,12 +165,6 @@ static const uint16_t poffsets[ECC_P_NUM_BYTES][ECC_P_COMP] =
 	{ 0x055,0x0ab,0x101,0x157,0x1ad,0x203,0x259,0x2af,0x305,0x35b,0x3b1,0x407,0x45d,0x4b3,0x509,0x55f,0x5b5,0x60b,0x661,0x6b7,0x70d,0x763,0x7b9,0x80f }
 };
 
-/**
- * @brief   -------------------------------------------------
- *            qoffsets - each row represents the addresses used to calculate a byte of the ECC Q
- *            data 52 (*2) ECC Q bytes, 43 values represented by each
- *          -------------------------------------------------.
- */
 
 static const uint16_t qoffsets[ECC_Q_NUM_BYTES][ECC_Q_COMP] =
 {
@@ -296,32 +222,12 @@ static const uint16_t qoffsets[ECC_Q_NUM_BYTES][ECC_Q_COMP] =
 	{ 0x867,0x003,0x05b,0x0b3,0x10b,0x163,0x1bb,0x213,0x26b,0x2c3,0x31b,0x373,0x3cb,0x423,0x47b,0x4d3,0x52b,0x583,0x5db,0x633,0x68b,0x6e3,0x73b,0x793,0x7eb,0x843,0x89b,0x037,0x08f,0x0e7,0x13f,0x197,0x1ef,0x247,0x29f,0x2f7,0x34f,0x3a7,0x3ff,0x457,0x4af,0x507,0x55f }
 };
 
-/*-------------------------------------------------
- *  ecc_source_byte - return data from the sector
- *  at the given offset, masking anything
- *  particular to a mode
- *-------------------------------------------------
- */
 
 static inline uint8_t ecc_source_byte(const uint8_t *sector, uint32_t offset)
 {
-	/* in mode 2 always treat these as 0 bytes */
 	return (sector[MODE_OFFSET] == 2 && offset < 4) ? 0x00 : sector[SYNC_OFFSET + SYNC_NUM_BYTES + offset];
 }
 
-/**
- * @fn  void ecc_compute_bytes(const uint8_t *sector, const uint16_t *row, int rowlen, uint8_t &val1, uint8_t &val2)
- *
- * @brief   -------------------------------------------------
- *            ecc_compute_bytes - calculate an ECC value (P or Q)
- *          -------------------------------------------------.
- *
- * @param   sector          The sector.
- * @param   row             The row.
- * @param   rowlen          The rowlen.
- * @param [in,out]  val1    The first value.
- * @param [in,out]  val2    The second value.
- */
 
 void ecc_compute_bytes(const uint8_t *sector, const uint16_t *row, int rowlen, uint8_t *val1, uint8_t *val2)
 {
@@ -337,22 +243,10 @@ void ecc_compute_bytes(const uint8_t *sector, const uint16_t *row, int rowlen, u
 	*val2 ^= *val1;
 }
 
-/**
- * @fn  int ecc_verify(const uint8_t *sector)
- *
- * @brief   -------------------------------------------------
- *            ecc_verify - verify the P and Q ECC codes in a sector
- *          -------------------------------------------------.
- *
- * @param   sector  The sector.
- *
- * @return  true if it succeeds, false if it fails.
- */
 
 int ecc_verify(const uint8_t *sector)
 {
 	int byte;
-	/* first verify P bytes */
 	for (byte = 0; byte < ECC_P_NUM_BYTES; byte++)
 	{
 		uint8_t val1, val2;
@@ -361,7 +255,6 @@ int ecc_verify(const uint8_t *sector)
 			return 0;
 	}
 
-	/* then verify Q bytes */
 	for (byte = 0; byte < ECC_Q_NUM_BYTES; byte++)
 	{
 		uint8_t val1, val2;
@@ -372,38 +265,17 @@ int ecc_verify(const uint8_t *sector)
 	return 1;
 }
 
-/**
- * @fn  void ecc_generate(uint8_t *sector)
- *
- * @brief   -------------------------------------------------
- *            ecc_generate - generate the P and Q ECC codes for a sector, overwriting any
- *            existing codes
- *          -------------------------------------------------.
- *
- * @param [in,out]  sector  If non-null, the sector.
- */
 
 void ecc_generate(uint8_t *sector)
 {
 	int byte;
-	/* first verify P bytes */
 	for (byte = 0; byte < ECC_P_NUM_BYTES; byte++)
 		ecc_compute_bytes(sector, poffsets[byte], ECC_P_COMP, &sector[ECC_P_OFFSET + byte], &sector[ECC_P_OFFSET + ECC_P_NUM_BYTES + byte]);
 
-	/* then verify Q bytes */
 	for (byte = 0; byte < ECC_Q_NUM_BYTES; byte++)
 		ecc_compute_bytes(sector, qoffsets[byte], ECC_Q_COMP, &sector[ECC_Q_OFFSET + byte], &sector[ECC_Q_OFFSET + ECC_Q_NUM_BYTES + byte]);
 }
 
-/**
- * @fn  void ecc_clear(uint8_t *sector)
- *
- * @brief   -------------------------------------------------
- *            ecc_clear - erase the ECC P and Q cods to 0 within a sector
- *          -------------------------------------------------.
- *
- * @param [in,out]  sector  If non-null, the sector.
- */
 
 void ecc_clear(uint8_t *sector)
 {

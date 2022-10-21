@@ -27,7 +27,6 @@ extern "C" {
 
 
 #define LOGSTV
-//YuiMsg
 #define ROTATED 1
 
 #define NB_STV_GAMES 98
@@ -93,22 +92,19 @@ Bios BiosList =
     "stvbios",
     "STV Bios",
     {
-        // For now, the emulator picks the first bios it finds so, worldwide, declaring english bioses first seems like a good idea.
-        // Also, usa bioses are known for practicing censorship, so let's prioritize euro.
-        // In the future it would be nice to have a way to choose this.
-        BIOS_BLOB, STV_REGION_EU, "epr-17954a.ic8", 0x000000, 0x080000, 0xf7722da3, // euro
-        BIOS_BLOB, STV_REGION_US, "epr-17952a.ic8", 0x000000, 0x080000, 0xd1be2adf, // us
-        BIOS_BLOB, STV_REGION_US, "epr-17741a.ic8", 0x000000, 0x080000, 0x4166c663, // us1
-        BIOS_BLOB, STV_REGION_JP, "epr-20091.ic8",  0x000000, 0x080000, 0x59ed40f4, // jp
-        BIOS_BLOB, STV_REGION_JP, "epr-19730.ic8",  0x000000, 0x080000, 0xd0e0889d, // jp1
-        BIOS_BLOB, STV_REGION_JP, "epr-17951a.ic8", 0x000000, 0x080000, 0x2672f9d8, // jp2
-        BIOS_BLOB, STV_REGION_JP, "epr-17740a.ic8", 0x000000, 0x080000, 0x3e23c81f, // jp3
-        BIOS_BLOB, STV_REGION_JP, "epr-17740.ic8",  0x000000, 0x080000, 0x5c5aa63d, // jp4
-        BIOS_BLOB, STV_REGION_TW, "epr-19854.ic8",  0x000000, 0x080000, 0xe09d1f60, // tw
-        BIOS_BLOB, STV_REGION_TW, "epr-17953a.ic8", 0x000000, 0x080000, 0xa4c47570, // tw1
-        BIOS_BLOB, STV_REGION_TW, "epr-17742a.ic8", 0x000000, 0x080000, 0x02daf123, // tw2
-        BIOS_BLOB, STV_DEBUG,     "stv110.bin",     0x000000, 0x080000, 0x3dfeda92, // debug
-        BIOS_BLOB, STV_DEV,       "stv1061.bin",    0x000000, 0x080000, 0x728dbca3, // dev
+        BIOS_BLOB, STV_REGION_EU, "epr-17954a.ic8", 0x000000, 0x080000, 0xf7722da3,
+        BIOS_BLOB, STV_REGION_US, "epr-17952a.ic8", 0x000000, 0x080000, 0xd1be2adf,
+        BIOS_BLOB, STV_REGION_US, "epr-17741a.ic8", 0x000000, 0x080000, 0x4166c663,
+        BIOS_BLOB, STV_REGION_JP, "epr-20091.ic8",  0x000000, 0x080000, 0x59ed40f4,
+        BIOS_BLOB, STV_REGION_JP, "epr-19730.ic8",  0x000000, 0x080000, 0xd0e0889d,
+        BIOS_BLOB, STV_REGION_JP, "epr-17951a.ic8", 0x000000, 0x080000, 0x2672f9d8,
+        BIOS_BLOB, STV_REGION_JP, "epr-17740a.ic8", 0x000000, 0x080000, 0x3e23c81f,
+        BIOS_BLOB, STV_REGION_JP, "epr-17740.ic8",  0x000000, 0x080000, 0x5c5aa63d,
+        BIOS_BLOB, STV_REGION_TW, "epr-19854.ic8",  0x000000, 0x080000, 0xe09d1f60,
+        BIOS_BLOB, STV_REGION_TW, "epr-17953a.ic8", 0x000000, 0x080000, 0xa4c47570,
+        BIOS_BLOB, STV_REGION_TW, "epr-17742a.ic8", 0x000000, 0x080000, 0x02daf123,
+        BIOS_BLOB, STV_DEBUG,     "stv110.bin",     0x000000, 0x080000, 0x3dfeda92,
+        BIOS_BLOB, STV_DEV,       "stv1061.bin",    0x000000, 0x080000, 0x728dbca3,
         GAME_END
     },
 };
@@ -2299,15 +2295,12 @@ int processBios(JZFile *zip,void *input) {
         return -1;
     }
 
-    //LOGSTV("%s, %d / %d bytes at offset %08X\n", filename, header.compressedSize, header.uncompressedSize, header.offset);
     j=0;
     while(BiosList.blobs[j].type != GAME_END) {
       if (header.crc32 == BiosList.blobs[j].crc32) {
-        // file is the same but has a different filename, let's replace it
         strncpy(BiosList.blobs[j].filename, filename, MAX_LENGTH_FILENAME);
       }
       if (strncmp(BiosList.blobs[j].filename, filename, MAX_LENGTH_FILENAME) == 0) {
-        //Compatible file found
         biosFound[j] = 1;
       }
       j++;
@@ -2330,16 +2323,13 @@ int processFile(JZFile *zip,void *input) {
         return -1;
     }
 
-    //LOGSTV("%s, %d / %d bytes at offset %08X\n", filename, header.compressedSize, header.uncompressedSize, header.offset);
     for (i=0; i<NB_STV_GAMES; i++) {
       j=0;
       while(GameList[i].blobs[j].type != GAME_END) {
         if (header.crc32 == GameList[i].blobs[j].crc32) {
-          // file is the same but has a different filename, let's replace it
           strncpy(GameList[i].blobs[j].filename, filename, MAX_LENGTH_FILENAME);
         }
         if (strncmp(GameList[i].blobs[j].filename, filename, MAX_LENGTH_FILENAME) == 0) {
-          //Compatible file found
           fileFound[i][j] = 1;
         }
         j++;
@@ -2375,7 +2365,6 @@ int copyBios(JZFile *zip, void* id) {
     i=0;
     while(availableGames[gameId].entry->blobs[i].type != GAME_END) {
       if (availableGames[gameId].entry->blobs[i].type == BIOS_BLOB) {
-        // We need a specific bios
         biosname = (char*)malloc(strlen(availableGames[gameId].entry->blobs[i].filename) + 1);
         strcpy(biosname, availableGames[gameId].entry->blobs[i].filename);
       }
@@ -2398,7 +2387,6 @@ int copyBios(JZFile *zip, void* id) {
           switch (biosLink.entry->blobs[i].type) {
             case BIOS_BLOB:
               if(biosname != NULL) {
-                // Load the special bios (sfish2 & sfish2j have a special bios, part of the romset, which allow optical media reading)
                 if (strcmp(biosname,filename) == 0) {
                   LOGSTV("Load bios %s\n", filename);
                   for (j=0; j<biosLink.entry->blobs[i].length;j++) {
@@ -2406,7 +2394,6 @@ int copyBios(JZFile *zip, void* id) {
                   }
                 }
               } else {
-                // Load a bios from stvbios, restricted by allowed regions for the game, further restricted by favorite region if allowed
                 if (biosloaded > i && (biosLink.entry->blobs[i].region & availableGames[gameId].entry->regions) == biosLink.entry->blobs[i].region
                 && (stv_favorite_region == biosLink.entry->blobs[i].region || (availableGames[gameId].entry->regions & stv_favorite_region) != stv_favorite_region)) {
                   LOGSTV("Load bios %s\n", filename);
@@ -2475,8 +2462,6 @@ int copyFile(JZFile *zip, void* id) {
             case HEADER_BLOB:
               for (j=0; j<availableGames[gameId].entry->blobs[i].length;j++) {
                 T1WriteByte(CartridgeArea->rom, availableGames[gameId].entry->blobs[i].offset+(2*j), data[j]);
-                // is zeroing odd bytes required ? i couldn't find a game requiring it, and it's breaking interlaced roms
-                //T1WriteByte(CartridgeArea->rom, availableGames[gameId].entry->blobs[i].offset+(2*j+1), 0);
               }
               break;
             case GAME_BYTE_BLOB:
@@ -2502,11 +2487,11 @@ int copyFile(JZFile *zip, void* id) {
 int recordCallback(JZFile *zip, int idx, JZFileHeader *header, char *filename, void *user_data) {
     long offset;
     rominfo* info = (rominfo*)user_data;
-    offset = zip->tell(zip); // store current position
+    offset = zip->tell(zip);
 
     if(zip->seek(zip, header->offset, SEEK_SET)) {
         LOGSTV("Cannot seek in zip file!\n");
-        return 0; // abort
+        return 0;
     }
 
     LOGSTV("%s\n", filename);
@@ -2517,17 +2502,17 @@ int recordCallback(JZFile *zip, int idx, JZFileHeader *header, char *filename, v
 #endif
     if (last != NULL) {
       if (strcmp(last+1, "stvbios.zip") == 0) {
-        processBios(zip, user_data); // alters file offset
+        processBios(zip, user_data);
       } else {
-        processFile(zip, user_data); // alters file offset
+        processFile(zip, user_data);
       }
     } else {
-      processFile(zip, user_data); // alters file offset
+      processFile(zip, user_data);
     }
 
-    zip->seek(zip, offset, SEEK_SET); // return to position
+    zip->seek(zip, offset, SEEK_SET);
 
-    return 1; // continue
+    return 1;
 }
 
 int updateGameList(const char* file, int *nbGames){
@@ -2564,7 +2549,6 @@ int updateGameList(const char* file, int *nbGames){
   j=0;
   if (!hasBios) {
     while(BiosList.blobs[j].type != GAME_END) {
-      // Any available bios will do, let's pick the first one
       if (BiosList.blobs[j].type == BIOS_BLOB && biosFound[j] == 1) {
         hasBios |= biosFound[j];
         biosLink.entry = &BiosList;
@@ -2590,7 +2574,6 @@ int updateGameList(const char* file, int *nbGames){
     }
     isASTVGame = isBlobFound & (isBiosFound | hasBios);
     if (isASTVGame == 1) {
-      //Add the filename as a Game
       int found = 0;
       for (j=0; j<NB_STV_GAMES; j++) {
         if (availableGames[j].entry == &GameList[i]) {
@@ -2708,7 +2691,6 @@ int loadGame(int gameId){
 
 #ifndef WIN32
 int STVGetRomList(const char* path, int force){
-//List number of files in directory
   DIR *d;
   FILE *fp;
   int i, nbGames = 0;
@@ -2722,7 +2704,6 @@ int STVGetRomList(const char* path, int force){
   struct dirent *dir;
   d = opendir(path);
   if (d) {
-    //Force a detection of the bios first
     unsigned int len = strlen(path)+strlen("/")+strlen("stvbios.zip")+1;
     unsigned char *file = (unsigned char *)malloc(len);
     snprintf((char*)file, len, "%s/stvbios.zip",path);
@@ -2755,7 +2736,6 @@ int STVGetRomList(const char* path, int force){
 }
 #else
 int STVGetRomList(const char* path, int force){
-//List number of files in directory
   FILE *fp;
   int i, nbGames = 0;
   char savefile[MAX_LENGTH_FILEPATH];
@@ -2769,7 +2749,6 @@ int STVGetRomList(const char* path, int force){
   }
   HANDLE hFind;
   WIN32_FIND_DATAA FindFileData;
-  //Force a detection of the bios first
   unsigned int len = strlen(path) + strlen("/") + strlen("stvbios.zip") + 1;
   unsigned char *file = malloc(len);
   snprintf(file, len, "%s/stvbios.zip", path);
@@ -2853,7 +2832,6 @@ int STVGetSingle(const char *pathfile, const char *biospath, int* id){
   int i, nbGames = 0;
   memset(availableGames, 0x0, sizeof(GameLink)*NB_STV_GAMES);
   struct dirent *dir;
-  //Force a detection of the bios first
   updateGameList(biospath, &nbGames);
   *id = updateGameList(pathfile, &nbGames);
   return nbGames;

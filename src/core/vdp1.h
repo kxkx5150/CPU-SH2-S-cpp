@@ -1,22 +1,3 @@
-/*  Copyright 2003-2005 Guillaume Duhamel
-    Copyright 2004-2006 Theo Berkau
-
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
 
 #ifndef VDP1_H
 #define VDP1_H
@@ -30,7 +11,6 @@ extern "C" {
 
 #define VIDCORE_DEFAULT -1
 #define CMD_QUEUE_SIZE  2048
-// #define YAB_ASYNC_RENDERING 1
 
 typedef struct
 {
@@ -63,10 +43,8 @@ typedef struct
     u16 userclipX2;
     u16 userclipY2;
 
-
 } Vdp1;
 
-// struct for Vdp1 part that shouldn't be saved
 typedef struct
 {
     int disptoggle;
@@ -157,7 +135,6 @@ typedef struct
     void (*Resize)(int, int, unsigned int, unsigned int, int);
     void (*getScale)(float *xRatio, float *yRatio);
     int (*IsFullscreen)(void);
-    // VDP1 specific
     int (*Vdp1Reset)(void);
     void (*Vdp1Draw)();
     void (*Vdp1NormalSpriteDraw)(vdp1cmd_struct *cmd, u8 *ram, Vdp1 *regs, u8 *back_framebuffer);
@@ -174,7 +151,6 @@ typedef struct
     void (*Vdp1EraseWrite)(int id);
     void (*Vdp1FrameChange)(void);
     void (*Vdp1RegenerateCmd)(vdp1cmd_struct *cmd);
-    // VDP2 specific
     int (*Vdp2Reset)(void);
     void (*Vdp2Draw)(void);
     void (*GetGlSize)(int *width, int *height);
@@ -195,7 +171,6 @@ extern vdp1cmdctrl_struct cmdBufferBeingProcessed[CMD_QUEUE_SIZE];
 extern u8 *Vdp1Ram;
 extern int vdp1Ram_update_start;
 extern int vdp1Ram_update_end;
-
 
 u8 FASTCALL   Vdp1RamReadByte(SH2_struct *context, u8 *, u32);
 u16 FASTCALL  Vdp1RamReadWord(SH2_struct *context, u8 *, u32);

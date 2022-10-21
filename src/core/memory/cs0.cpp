@@ -1,33 +1,8 @@
-/*  Copyright 2004-2005 Theo Berkau
-    Copyright 2006 Ex-Cyber
-    Copyright 2005 Guillaume Duhamel
 
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
-
-/*! \file cs0.c
-    \brief A-bus CS0 emulation functions. Most of the cartridge related code is here.
-*/
 
 #include <stdlib.h>
 #include "cs0.h"
 #include "error.h"
-// #include "japmodem.h"
-// #include "netlink.h"
 #include "decrypt.h"
 
 cartridge_struct *CartridgeArea;
@@ -36,48 +11,32 @@ static u8 decryptOn = 0;
 
 #define LOGSTV
 
-//////////////////////////////////////////////////////////////////////////////
-// Dummy/No Cart Functions
-//////////////////////////////////////////////////////////////////////////////
-
 static u8 FASTCALL DummyCs0ReadByte(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr)
 {
     return 0xFF;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u16 FASTCALL DummyCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr)
 {
     return 0xFFFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL DummyCs0ReadLong(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr)
 {
     return 0xFFFFFFFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL DummyCs0WriteByte(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u8 val)
 {
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL DummyCs0WriteWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u16 val)
 {
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL DummyCs0WriteLong(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u32 val)
 {
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL DummyCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr)
 {
@@ -86,16 +45,12 @@ static u8 FASTCALL DummyCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, UNUS
     return 0xFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL DummyCs1ReadWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr)
 {
     if (addr == 0xFFFFFE)
         return (0xFF00 | CartridgeArea->cartid);
     return 0xFFFF;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u32 FASTCALL DummyCs1ReadLong(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr)
 {
@@ -104,66 +59,44 @@ static u32 FASTCALL DummyCs1ReadLong(SH2_struct *context, UNUSED u8 *memory, UNU
     return 0xFFFFFFFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL DummyCs1WriteByte(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u8 val)
 {
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL DummyCs1WriteWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u16 val)
 {
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL DummyCs1WriteLong(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u32 val)
 {
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL DummyCs2ReadByte(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr)
 {
     return 0xFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL DummyCs2ReadWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr)
 {
     return 0xFFFF;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u32 FASTCALL DummyCs2ReadLong(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr)
 {
     return 0xFFFFFFFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL DummyCs2WriteByte(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u8 val)
 {
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL DummyCs2WriteWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u16 val)
 {
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL DummyCs2WriteLong(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u32 val)
 {
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// Action Replay 4M Plus funcions
-//////////////////////////////////////////////////////////////////////////////
 
 typedef enum
 {
@@ -180,7 +113,6 @@ typedef enum
 u8 flreg0 = 0;
 u8 flreg1 = 0;
 
-// Default value is for chip AT29C010
 u8 vendorid = 0x1F;
 u8 deviceid = 0xD5;
 
@@ -189,8 +121,6 @@ flashstate flstate1;
 
 u8 flbuf0[128];
 u8 flbuf1[128];
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL FlashCs0ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -226,21 +156,15 @@ static u8 FASTCALL FlashCs0ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL FlashCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     return ((u16)(FlashCs0ReadByte(NULL, memory, addr) << 8) | (u16)(FlashCs0ReadByte(NULL, memory, addr + 1)));
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL FlashCs0ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     return ((u32)FlashCs0ReadWord(NULL, memory, addr) << 16) | (u32)FlashCs0ReadWord(NULL, memory, addr + 2);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL FlashCs0WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
@@ -321,15 +245,11 @@ static void FASTCALL FlashCs0WriteByte(SH2_struct *context, UNUSED u8 *memory, u
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL FlashCs0WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
     FlashCs0WriteByte(context, memory, addr, (u8)(val >> 8));
     FlashCs0WriteByte(context, memory, addr + 1, (u8)(val & 0xff));
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL FlashCs0WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
@@ -337,41 +257,30 @@ static void FASTCALL FlashCs0WriteLong(SH2_struct *context, UNUSED u8 *memory, u
     FlashCs0WriteWord(context, memory, addr + 2, (u16)(val & 0xffff));
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u8 FASTCALL AR4MCs0ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     addr &= 0x1FFFFFF;
 
     switch (addr >> 20) {
         case 0x00: {
-            if ((addr & 0x80000) == 0)    // EEPROM
+            if ((addr & 0x80000) == 0)
                 return FlashCs0ReadByte(NULL, memory, addr);
-            //            return biosarea->getByte(addr);
-            //         else // Outport
-            //            fprintf(stderr, "Commlink Outport Byte read\n");
             break;
         }
         case 0x01: {
-            //         if ((addr & 0x80000) == 0) // Commlink Status flag
-            //            fprintf(stderr, "Commlink Status Flag read\n");
-            //         else // Inport for Commlink
-            //            fprintf(stderr, "Commlink Inport Byte read\n");
             break;
         }
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Dram area
+        case 0x07:
             return T1ReadByte(CartridgeArea->dram, addr & 0x3FFFFF);
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 
     return 0xFF;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u16 FASTCALL AR4MCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -379,23 +288,17 @@ static u16 FASTCALL AR4MCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 
 
     switch (addr >> 20) {
         case 0x00: {
-            if ((addr & 0x80000) == 0)    // EEPROM
+            if ((addr & 0x80000) == 0)
                 return FlashCs0ReadWord(NULL, memory, addr);
-            //         else // Outport
-            //            fprintf(stderr, "Commlink Outport Word read\n");
             break;
         }
         case 0x01: {
-            //         if ((addr & 0x80000) == 0) // Commlink Status flag
-            //            fprintf(stderr, "Commlink Status Flag read\n");
-            //         else // Inport for Commlink
-            //            fprintf(stderr, "Commlink Inport Word read\n");
             break;
         }
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             return T1ReadWord(CartridgeArea->dram, addr & 0x3FFFFF);
         case 0x12:
         case 0x1E:
@@ -409,14 +312,12 @@ static u16 FASTCALL AR4MCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 
         case 0x1B:
         case 0x1F:
             return 0xFFFD;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 
     return 0xFFFF;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u32 FASTCALL AR4MCs0ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -424,23 +325,17 @@ static u32 FASTCALL AR4MCs0ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 
 
     switch (addr >> 20) {
         case 0x00: {
-            if ((addr & 0x80000) == 0)    // EEPROM
+            if ((addr & 0x80000) == 0)
                 return FlashCs0ReadLong(NULL, memory, addr);
-            //         else // Outport
-            //            fprintf(stderr, "Commlink Outport Long read\n");
             break;
         }
         case 0x01: {
-            //         if ((addr & 0x80000) == 0) // Commlink Status flag
-            //            fprintf(stderr, "Commlink Status Flag read\n");
-            //         else // Inport for Commlink
-            //            fprintf(stderr, "Commlink Inport Long read\n");
             break;
         }
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             return T1ReadLong(CartridgeArea->dram, addr & 0x3FFFFF);
         case 0x12:
         case 0x1E:
@@ -454,14 +349,12 @@ static u32 FASTCALL AR4MCs0ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 
         case 0x1B:
         case 0x1F:
             return 0xFFFDFFFD;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 
     return 0xFFFFFFFF;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL AR4MCs0WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
@@ -469,31 +362,23 @@ static void FASTCALL AR4MCs0WriteByte(SH2_struct *context, UNUSED u8 *memory, u3
 
     switch (addr >> 20) {
         case 0x00: {
-            if ((addr & 0x80000) == 0)    // EEPROM
+            if ((addr & 0x80000) == 0)
                 FlashCs0WriteByte(context, memory, addr, val);
-            //         else // Outport
-            //            fprintf(stderr, "Commlink Outport byte write\n");
             break;
         }
         case 0x01: {
-            //         if ((addr & 0x80000) == 0) // Commlink Status flag
-            //            fprintf(stderr, "Commlink Status Flag write\n");
-            //         else // Inport for Commlink
-            //            fprintf(stderr, "Commlink Inport Byte write\n");
             break;
         }
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             T1WriteByte(CartridgeArea->dram, addr & 0x3FFFFF, val);
             break;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL AR4MCs0WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
@@ -501,31 +386,23 @@ static void FASTCALL AR4MCs0WriteWord(SH2_struct *context, UNUSED u8 *memory, u3
 
     switch (addr >> 20) {
         case 0x00: {
-            if ((addr & 0x80000) == 0)    // EEPROM
+            if ((addr & 0x80000) == 0)
                 FlashCs0WriteWord(context, memory, addr, val);
-            //         else // Outport
-            //            fprintf(stderr, "Commlink Outport Word write\n");
             break;
         }
         case 0x01: {
-            //         if ((addr & 0x80000) == 0) // Commlink Status flag
-            //            fprintf(stderr, "Commlink Status Flag write\n");
-            //         else // Inport for Commlink
-            //            fprintf(stderr, "Commlink Inport Word write\n");
             break;
         }
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             T1WriteWord(CartridgeArea->dram, addr & 0x3FFFFF, val);
             break;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL AR4MCs0WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
@@ -533,143 +410,119 @@ static void FASTCALL AR4MCs0WriteLong(SH2_struct *context, UNUSED u8 *memory, u3
 
     switch (addr >> 20) {
         case 0x00: {
-            if ((addr & 0x80000) == 0)    // EEPROM
+            if ((addr & 0x80000) == 0)
                 FlashCs0WriteLong(context, memory, addr, val);
-            //         else // Outport
-            //            fprintf(stderr, "Commlink Outport Long write\n");
             break;
         }
         case 0x01: {
-            //         if ((addr & 0x80000) == 0) // Commlink Status flag
-            //            fprintf(stderr, "Commlink Status Flag write\n");
-            //         else // Inport for Commlink
-            //            fprintf(stderr, "Commlink Inport Long write\n");
             break;
         }
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             T1WriteLong(CartridgeArea->dram, addr & 0x3FFFFF, val);
             break;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// 8 Mbit Dram
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL DRAM8MBITCs0ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     addr &= 0x1FFFFFF;
 
     switch (addr >> 20) {
-        case 0x04:    // Dram area
+        case 0x04:
             return T1ReadByte(CartridgeArea->dram, addr & 0x7FFFF);
-        case 0x06:    // Dram area
+        case 0x06:
             return T1ReadByte(CartridgeArea->dram, 0x80000 | (addr & 0x7FFFF));
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 
     return 0xFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL DRAM8MBITCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     addr &= 0x1FFFFFF;
 
     switch (addr >> 20) {
-        case 0x04:    // Dram area
+        case 0x04:
             return T1ReadWord(CartridgeArea->dram, addr & 0x7FFFF);
-        case 0x06:    // Dram area
+        case 0x06:
             return T1ReadWord(CartridgeArea->dram, 0x80000 | (addr & 0x7FFFF));
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 
     return 0xFFFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL DRAM8MBITCs0ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     addr &= 0x1FFFFFF;
 
     switch (addr >> 20) {
-        case 0x04:    // Dram area
+        case 0x04:
             return T1ReadLong(CartridgeArea->dram, addr & 0x7FFFF);
-        case 0x06:    // Dram area
+        case 0x06:
             return T1ReadLong(CartridgeArea->dram, 0x80000 | (addr & 0x7FFFF));
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 
     return 0xFFFFFFFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL DRAM8MBITCs0WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
     addr &= 0x1FFFFFF;
 
     switch (addr >> 20) {
-        case 0x04:    // Dram area
+        case 0x04:
             T1WriteByte(CartridgeArea->dram, addr & 0x7FFFF, val);
             break;
-        case 0x06:    // Dram area
+        case 0x06:
             T1WriteByte(CartridgeArea->dram, 0x80000 | (addr & 0x7FFFF), val);
             break;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL DRAM8MBITCs0WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
     addr &= 0x1FFFFFF;
 
     switch (addr >> 20) {
-        case 0x04:    // Dram area
+        case 0x04:
             T1WriteWord(CartridgeArea->dram, addr & 0x7FFFF, val);
             break;
-        case 0x06:    // Dram area
+        case 0x06:
             T1WriteWord(CartridgeArea->dram, 0x80000 | (addr & 0x7FFFF), val);
             break;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL DRAM8MBITCs0WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
     addr &= 0x1FFFFFF;
 
     switch (addr >> 20) {
-        case 0x04:    // Dram area
+        case 0x04:
             T1WriteLong(CartridgeArea->dram, addr & 0x7FFFF, val);
             break;
-        case 0x06:    // Dram area
+        case 0x06:
             T1WriteLong(CartridgeArea->dram, 0x80000 | (addr & 0x7FFFF), val);
             break;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// 32 Mbit Dram
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL DRAM32MBITCs0ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -679,16 +532,14 @@ static u8 FASTCALL DRAM32MBITCs0ReadByte(SH2_struct *context, UNUSED u8 *memory,
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Dram area
+        case 0x07:
             return T1ReadByte(CartridgeArea->dram, addr & 0x3FFFFF);
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 
     return 0xFF;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u16 FASTCALL DRAM32MBITCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -698,16 +549,14 @@ static u16 FASTCALL DRAM32MBITCs0ReadWord(SH2_struct *context, UNUSED u8 *memory
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             return T1ReadWord(CartridgeArea->dram, addr & 0x3FFFFF);
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 
     return 0xFFFF;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u32 FASTCALL DRAM32MBITCs0ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -717,16 +566,14 @@ static u32 FASTCALL DRAM32MBITCs0ReadLong(SH2_struct *context, UNUSED u8 *memory
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             return T1ReadLong(CartridgeArea->dram, addr & 0x3FFFFF);
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 
     return 0xFFFFFFFF;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL DRAM32MBITCs0WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
@@ -736,15 +583,13 @@ static void FASTCALL DRAM32MBITCs0WriteByte(SH2_struct *context, UNUSED u8 *memo
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             T1WriteByte(CartridgeArea->dram, addr & 0x3FFFFF, val);
             break;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL DRAM32MBITCs0WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
@@ -754,15 +599,13 @@ static void FASTCALL DRAM32MBITCs0WriteWord(SH2_struct *context, UNUSED u8 *memo
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             T1WriteWord(CartridgeArea->dram, addr & 0x3FFFFF, val);
             break;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL DRAM32MBITCs0WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
@@ -772,17 +615,13 @@ static void FASTCALL DRAM32MBITCs0WriteLong(SH2_struct *context, UNUSED u8 *memo
         case 0x04:
         case 0x05:
         case 0x06:
-        case 0x07:    // Ram cart area
+        case 0x07:
             T1WriteLong(CartridgeArea->dram, addr & 0x3FFFFF, val);
             break;
-        default:    // The rest doesn't matter
+        default:
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// 4 Mbit Backup Ram
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL BUP4MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -793,23 +632,17 @@ static u8 FASTCALL BUP4MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, u
         return 0xFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL BUP4MBITCs1ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     printf("bup\t: BUP4MBIT read word - %08X\n", addr);
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL BUP4MBITCs1ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     printf("bup\t: BUP4MBIT read long - %08X\n", addr);
     return 0;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL BUP4MBITCs1WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
@@ -819,23 +652,15 @@ static void FASTCALL BUP4MBITCs1WriteByte(SH2_struct *context, UNUSED u8 *memory
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP4MBITCs1WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
     printf("bup\t: BUP4MBIT write word - %08X\n", addr);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP4MBITCs1WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
     printf("bup\t: BUP4MBIT write long - %08X\n", addr);
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// 8 Mbit Backup Ram
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL BUP8MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -846,23 +671,17 @@ static u8 FASTCALL BUP8MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, u
         return 0xFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL BUP8MBITCs1ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     printf("bup\t: BUP8MBIT read word - %08X\n", addr);
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL BUP8MBITCs1ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     printf("bup\t: BUP8MBIT read long - %08X\n", addr);
     return 0;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL BUP8MBITCs1WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
@@ -872,23 +691,15 @@ static void FASTCALL BUP8MBITCs1WriteByte(SH2_struct *context, UNUSED u8 *memory
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP8MBITCs1WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
     printf("bup\t: BUP8MBIT write word - %08X\n", addr);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP8MBITCs1WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
     printf("bup\t: BUP8MBIT write long - %08X\n", addr);
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// 16 Mbit Backup Ram
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL BUP16MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -899,23 +710,17 @@ static u8 FASTCALL BUP16MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, 
         return 0xFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL BUP16MBITCs1ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     printf("bup\t: BUP16MBIT read word - %08X\n", addr);
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL BUP16MBITCs1ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     printf("bup\t: BUP16MBIT read long - %08X\n", addr);
     return 0;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL BUP16MBITCs1WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
@@ -925,23 +730,15 @@ static void FASTCALL BUP16MBITCs1WriteByte(SH2_struct *context, UNUSED u8 *memor
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP16MBITCs1WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
     printf("bup\t: BUP16MBIT write word - %08X\n", addr);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP16MBITCs1WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
     printf("bup\t: BUP16MBIT write long - %08X\n", addr);
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// 32 Mbit Backup Ram
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL BUP32MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -952,23 +749,17 @@ static u8 FASTCALL BUP32MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, 
         return 0xFF;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL BUP32MBITCs1ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     printf("bup\t: BUP32MBIT read word - %08X\n", addr);
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL BUP32MBITCs1ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     printf("bup\t: BUP32MBIT read long - %08X\n", addr);
     return 0;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL BUP32MBITCs1WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
@@ -978,23 +769,15 @@ static void FASTCALL BUP32MBITCs1WriteByte(SH2_struct *context, UNUSED u8 *memor
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP32MBITCs1WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
     printf("bup\t: BUP32MBIT write word - %08X\n", addr);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP32MBITCs1WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
     printf("bup\t: BUP32MBIT write long - %08X\n", addr);
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// 128 Mbit Backup Ram
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL BUP128MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -1002,15 +785,11 @@ static u8 FASTCALL BUP128MBITCs1ReadByte(SH2_struct *context, UNUSED u8 *memory,
     return ret;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL BUP128MBITCs1ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     u32 ret = T1ReadWord(CartridgeArea->dram, addr & 0xFFFFFF);
     return ret;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u32 FASTCALL BUP128MBITCs1ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -1018,15 +797,11 @@ static u32 FASTCALL BUP128MBITCs1ReadLong(SH2_struct *context, UNUSED u8 *memory
     return ret;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP128MBITCs1WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
     addr &= 0xFFFFFF;
     T1WriteByte(CartridgeArea->dram, addr, val);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL BUP128MBITCs1WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
@@ -1034,69 +809,46 @@ static void FASTCALL BUP128MBITCs1WriteWord(SH2_struct *context, UNUSED u8 *memo
     T1WriteWord(CartridgeArea->dram, addr, val);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL BUP128MBITCs1WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
     addr &= 0xFFFFFF;
     T1WriteLong(CartridgeArea->dram, addr, val);
 }
 
-
-//////////////////////////////////////////////////////////////////////////////
-// 16 Mbit Rom
-//////////////////////////////////////////////////////////////////////////////
-
 static u8 FASTCALL ROM16MBITCs0ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     return T1ReadByte(CartridgeArea->rom, addr & 0x1FFFFF);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u16 FASTCALL ROM16MBITCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     return T1ReadWord(CartridgeArea->rom, addr & 0x1FFFFF);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL ROM16MBITCs0ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     return T1ReadLong(CartridgeArea->rom, addr & 0x1FFFFF);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL ROM16MBITCs0WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
     T1WriteByte(CartridgeArea->rom, addr & 0x1FFFFF, val);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL ROM16MBITCs0WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
     T1WriteWord(CartridgeArea->rom, addr & 0x1FFFFF, val);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL ROM16MBITCs0WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
     T1WriteLong(CartridgeArea->rom, addr & 0x1FFFFF, val);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// 256 Mbit ST-V Rom
-//////////////////////////////////////////////////////////////////////////////
-
 static u8 FASTCALL ROMSTVCs0ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     return T1ReadByte(CartridgeArea->rom, addr & 0x1FFFFFF);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u16 FASTCALL ROMSTVCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
@@ -1104,57 +856,42 @@ static u16 FASTCALL ROMSTVCs0ReadWord(SH2_struct *context, UNUSED u8 *memory, u3
     return ret;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL ROMSTVCs0ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     u32 ret = T1ReadLong(CartridgeArea->rom, addr & 0x1FFFFFF);
     return ret;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL ROMSTVCs0WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
     T1WriteByte(CartridgeArea->rom, addr & 0x1FFFFFF, val);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL ROMSTVCs0WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
     T1WriteWord(CartridgeArea->rom, addr & 0x1FFFFFF, val);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL ROMSTVCs0WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
     T1WriteLong(CartridgeArea->rom, addr & 0x1FFFFFF, val);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static u8 FASTCALL ROMSTVCs1ReadByte(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     return T1ReadByte(&CartridgeArea->rom[0x2000000], addr & 0xFFFFFF);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u16 FASTCALL ROMSTVCs1ReadWord(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     return T1ReadWord(&CartridgeArea->rom[0x2000000], addr & 0xFFFFFF);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static u32 FASTCALL ROMSTVCs1ReadLong(SH2_struct *context, UNUSED u8 *memory, u32 addr)
 {
     LOGSTV("%s %x\n", __FUNCTION__, addr);
     u8 decryptCmd = addr & 0xF;
-    if (decryptOn & 0x1)    // protection calculation is activated
-    {
+    if (decryptOn & 0x1) {
         if (decryptCmd == 0xc) {
             u16 res  = cryptoDecrypt();
             u16 res2 = cryptoDecrypt();
@@ -1166,8 +903,6 @@ static u32 FASTCALL ROMSTVCs1ReadLong(SH2_struct *context, UNUSED u8 *memory, u3
     return T1ReadLong(&CartridgeArea->rom[0x2000000], addr & 0xFFFFFF);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL ROMSTVCs1WriteByte(SH2_struct *context, UNUSED u8 *memory, u32 addr, u8 val)
 {
     LOGSTV("%s %x=%x\n", __FUNCTION__, addr, val);
@@ -1178,8 +913,6 @@ static void FASTCALL ROMSTVCs1WriteByte(SH2_struct *context, UNUSED u8 *memory, 
     }
     T1WriteByte(&CartridgeArea->rom[0x2000000], addr & 0xFFFFFF, val);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void FASTCALL ROMSTVCs1WriteWord(SH2_struct *context, UNUSED u8 *memory, u32 addr, u16 val)
 {
@@ -1197,16 +930,10 @@ static void FASTCALL ROMSTVCs1WriteWord(SH2_struct *context, UNUSED u8 *memory, 
         T1WriteWord(&CartridgeArea->rom[0x2000000], addr & 0xFFFFFF, val);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void FASTCALL ROMSTVCs1WriteLong(SH2_struct *context, UNUSED u8 *memory, u32 addr, u32 val)
 {
     T1WriteLong(&CartridgeArea->rom[0x2000000], addr & 0xFFFFFF, val);
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// General Cart functions
-//////////////////////////////////////////////////////////////////////////////
 
 int CartInit(const char *filename, int type)
 {
@@ -1216,7 +943,6 @@ int CartInit(const char *filename, int type)
     CartridgeArea->carttype = type;
     CartridgeArea->filename = filename;
 
-    // Setup default mappings
     CartridgeArea->Cs0ReadByte  = &DummyCs0ReadByte;
     CartridgeArea->Cs0ReadWord  = &DummyCs0ReadWord;
     CartridgeArea->Cs0ReadLong  = &DummyCs0ReadLong;
@@ -1241,18 +967,15 @@ int CartInit(const char *filename, int type)
     decryptOn = 0;
 
     switch (type) {
-        case CART_PAR:    // Action Replay 4M Plus(or equivalent)
-        {
+        case CART_PAR: {
             if ((CartridgeArea->rom = T2MemoryInit(0x40000)) == NULL)
                 return -1;
 
             if ((CartridgeArea->dram = T1MemoryInit(0x400000)) == NULL)
                 return -1;
 
-            // Use 32 Mbit Dram id
             CartridgeArea->cartid = 0x5C;
 
-            // Load AR firmware to memory
             if (T123Load(CartridgeArea->rom, 0x40000, 2, filename) != 0)
                 return -1;
 
@@ -1261,7 +984,6 @@ int CartInit(const char *filename, int type)
             flstate0 = FL_READ;
             flstate1 = FL_READ;
 
-            // Setup Functions
             CartridgeArea->Cs0ReadByte  = &AR4MCs0ReadByte;
             CartridgeArea->Cs0ReadWord  = &AR4MCs0ReadWord;
             CartridgeArea->Cs0ReadLong  = &AR4MCs0ReadLong;
@@ -1270,18 +992,15 @@ int CartInit(const char *filename, int type)
             CartridgeArea->Cs0WriteLong = &AR4MCs0WriteLong;
             break;
         }
-        case CART_BACKUPRAM4MBIT:    // 4 Mbit Backup Ram
-        {
+        case CART_BACKUPRAM4MBIT: {
             if ((CartridgeArea->bupram = T1MemoryInit(CART_BUP4MBIT_SIZE)) == NULL)
                 return -1;
 
             CartridgeArea->cartid = 0x21;
 
-            // Load Backup Ram data from file
             if (T123Load(CartridgeArea->bupram, CART_BUP4MBIT_SIZE, 1, filename) != 0)
                 FormatBackupRam(CartridgeArea->bupram, CART_BUP4MBIT_SIZE);
 
-            // Setup Functions
             CartridgeArea->Cs1ReadByte  = &BUP4MBITCs1ReadByte;
             CartridgeArea->Cs1ReadWord  = &BUP4MBITCs1ReadWord;
             CartridgeArea->Cs1ReadLong  = &BUP4MBITCs1ReadLong;
@@ -1290,18 +1009,15 @@ int CartInit(const char *filename, int type)
             CartridgeArea->Cs1WriteLong = &BUP4MBITCs1WriteLong;
             break;
         }
-        case CART_BACKUPRAM8MBIT:    // 8 Mbit Backup Ram
-        {
+        case CART_BACKUPRAM8MBIT: {
             if ((CartridgeArea->bupram = T1MemoryInit(CART_BUP8MBIT_SIZE)) == NULL)
                 return -1;
 
             CartridgeArea->cartid = 0x22;
 
-            // Load Backup Ram data from file
             if (T123Load(CartridgeArea->bupram, CART_BUP8MBIT_SIZE, 1, filename) != 0)
                 FormatBackupRam(CartridgeArea->bupram, CART_BUP8MBIT_SIZE);
 
-            // Setup Functions
             CartridgeArea->Cs1ReadByte  = &BUP8MBITCs1ReadByte;
             CartridgeArea->Cs1ReadWord  = &BUP8MBITCs1ReadWord;
             CartridgeArea->Cs1ReadLong  = &BUP8MBITCs1ReadLong;
@@ -1310,18 +1026,15 @@ int CartInit(const char *filename, int type)
             CartridgeArea->Cs1WriteLong = &BUP8MBITCs1WriteLong;
             break;
         }
-        case CART_BACKUPRAM16MBIT:    // 16 Mbit Backup Ram
-        {
+        case CART_BACKUPRAM16MBIT: {
             if ((CartridgeArea->bupram = T1MemoryInit(CART_BUP16MBIT_SIZE)) == NULL)
                 return -1;
 
             CartridgeArea->cartid = 0x23;
 
-            // Load Backup Ram data from file
             if (T123Load(CartridgeArea->bupram, CART_BUP16MBIT_SIZE, 1, filename) != 0)
                 FormatBackupRam(CartridgeArea->bupram, CART_BUP16MBIT_SIZE);
 
-            // Setup Functions
             CartridgeArea->Cs1ReadByte  = &BUP16MBITCs1ReadByte;
             CartridgeArea->Cs1ReadWord  = &BUP16MBITCs1ReadWord;
             CartridgeArea->Cs1ReadLong  = &BUP16MBITCs1ReadLong;
@@ -1330,16 +1043,13 @@ int CartInit(const char *filename, int type)
             CartridgeArea->Cs1WriteLong = &BUP16MBITCs1WriteLong;
             break;
         }
-        case CART_BACKUPRAM32MBIT:    // 32 Mbit Backup Ram
-        {
+        case CART_BACKUPRAM32MBIT: {
             if ((CartridgeArea->bupram = T1MemoryInit(CART_BUP32MBIT_SIZE)) == NULL)
                 return -1;
 
             CartridgeArea->cartid = 0x24;
-            // Load Backup Ram data from file
             if (T123Load(CartridgeArea->bupram, CART_BUP32MBIT_SIZE, 1, filename) != 0)
                 FormatBackupRam(CartridgeArea->bupram, CART_BUP32MBIT_SIZE);
-            // Setup Functions
             CartridgeArea->Cs1ReadByte  = &BUP32MBITCs1ReadByte;
             CartridgeArea->Cs1ReadWord  = &BUP32MBITCs1ReadWord;
             CartridgeArea->Cs1ReadLong  = &BUP32MBITCs1ReadLong;
@@ -1348,30 +1058,25 @@ int CartInit(const char *filename, int type)
             CartridgeArea->Cs1WriteLong = &BUP32MBITCs1WriteLong;
             break;
         }
-        case CART_DRAM128MBIT:    // 128 Mbit Ram for development
-            // Required by Heart of darkness
-            {
-                if ((CartridgeArea->dram = T1MemoryInit(CART_DRAM128MBIT_SIZE)) == NULL)
-                    return -1;
+        case CART_DRAM128MBIT: {
+            if ((CartridgeArea->dram = T1MemoryInit(CART_DRAM128MBIT_SIZE)) == NULL)
+                return -1;
 
-                CartridgeArea->cartid = 0xFF;    // I have no idea what the real id is
-                // Setup Functions
-                CartridgeArea->Cs1ReadByte  = &BUP128MBITCs1ReadByte;
-                CartridgeArea->Cs1ReadWord  = &BUP128MBITCs1ReadWord;
-                CartridgeArea->Cs1ReadLong  = &BUP128MBITCs1ReadLong;
-                CartridgeArea->Cs1WriteByte = &BUP128MBITCs1WriteByte;
-                CartridgeArea->Cs1WriteWord = &BUP128MBITCs1WriteWord;
-                CartridgeArea->Cs1WriteLong = &BUP128MBITCs1WriteLong;
-                break;
-            }
-        case CART_DRAM8MBIT:    // 8 Mbit Dram Cart
-        {
+            CartridgeArea->cartid       = 0xFF;
+            CartridgeArea->Cs1ReadByte  = &BUP128MBITCs1ReadByte;
+            CartridgeArea->Cs1ReadWord  = &BUP128MBITCs1ReadWord;
+            CartridgeArea->Cs1ReadLong  = &BUP128MBITCs1ReadLong;
+            CartridgeArea->Cs1WriteByte = &BUP128MBITCs1WriteByte;
+            CartridgeArea->Cs1WriteWord = &BUP128MBITCs1WriteWord;
+            CartridgeArea->Cs1WriteLong = &BUP128MBITCs1WriteLong;
+            break;
+        }
+        case CART_DRAM8MBIT: {
             if ((CartridgeArea->dram = T1MemoryInit(0x100000)) == NULL)
                 return -1;
 
             CartridgeArea->cartid = 0x5A;
 
-            // Setup Functions
             CartridgeArea->Cs0ReadByte  = &DRAM8MBITCs0ReadByte;
             CartridgeArea->Cs0ReadWord  = &DRAM8MBITCs0ReadWord;
             CartridgeArea->Cs0ReadLong  = &DRAM8MBITCs0ReadLong;
@@ -1380,14 +1085,12 @@ int CartInit(const char *filename, int type)
             CartridgeArea->Cs0WriteLong = &DRAM8MBITCs0WriteLong;
             break;
         }
-        case CART_DRAM32MBIT:    // 32 Mbit Dram Cart
-        {
+        case CART_DRAM32MBIT: {
             if ((CartridgeArea->dram = T1MemoryInit(0x400000)) == NULL)
                 return -1;
 
             CartridgeArea->cartid = 0x5C;
 
-            // Setup Functions
             CartridgeArea->Cs0ReadByte  = &DRAM32MBITCs0ReadByte;
             CartridgeArea->Cs0ReadWord  = &DRAM32MBITCs0ReadWord;
             CartridgeArea->Cs0ReadLong  = &DRAM32MBITCs0ReadLong;
@@ -1396,18 +1099,15 @@ int CartInit(const char *filename, int type)
             CartridgeArea->Cs0WriteLong = &DRAM32MBITCs0WriteLong;
             break;
         }
-        case CART_ROM16MBIT:    // 16 Mbit Rom Cart
-        {
+        case CART_ROM16MBIT: {
             if ((CartridgeArea->rom = T1MemoryInit(0x200000)) == NULL)
                 return -1;
 
-            CartridgeArea->cartid = 0xFF;    // I have no idea what the real id is
+            CartridgeArea->cartid = 0xFF;
 
-            // Load Rom to memory
             if (T123Load(CartridgeArea->rom, 0x200000, 1, filename) != 0)
                 return -1;
 
-            // Setup Functions
             CartridgeArea->Cs0ReadByte  = &ROM16MBITCs0ReadByte;
             CartridgeArea->Cs0ReadWord  = &ROM16MBITCs0ReadWord;
             CartridgeArea->Cs0ReadLong  = &ROM16MBITCs0ReadLong;
@@ -1416,12 +1116,10 @@ int CartInit(const char *filename, int type)
             CartridgeArea->Cs0WriteLong = &ROM16MBITCs0WriteLong;
             break;
         }
-        case CART_ROMSTV:    // 256 Mbit STV Rom Cart
-        {
+        case CART_ROMSTV: {
             if ((CartridgeArea->rom = T1MemoryInit(0x3000000)) == NULL)
                 return -1;
-            CartridgeArea->cartid = 0xFF;    // I have no idea what the real id is
-            // Setup Functions
+            CartridgeArea->cartid       = 0xFF;
             CartridgeArea->Cs0ReadByte  = &ROMSTVCs0ReadByte;
             CartridgeArea->Cs0ReadWord  = &ROMSTVCs0ReadWord;
             CartridgeArea->Cs0ReadLong  = &ROMSTVCs0ReadLong;
@@ -1437,29 +1135,24 @@ int CartInit(const char *filename, int type)
             CartridgeArea->Cs1WriteLong = &ROMSTVCs1WriteLong;
             break;
         }
-        case CART_USBDEV:    // USB Dev Cartridge
-        {
+        case CART_USBDEV: {
             if ((CartridgeArea->rom = T2MemoryInit(0x40000)) == NULL)
                 return -1;
 
             if ((CartridgeArea->dram = T1MemoryInit(0x400000)) == NULL)
                 return -1;
 
-            // No extra dram, etc. built-in
             CartridgeArea->cartid = 0;
 
-            // Load AR firmware to memory
             if (T123Load(CartridgeArea->rom, 0x40000, 2, filename) != 0)
                 return -1;
 
-            // ID for SST39SF010A
             vendorid = 0xBF;
             deviceid = 0xB5;
 
             flstate0 = FL_READ;
             flstate1 = FL_READ;
 
-            // Setup Functions
             CartridgeArea->Cs0ReadByte  = &AR4MCs0ReadByte;
             CartridgeArea->Cs0ReadWord  = &AR4MCs0ReadWord;
             CartridgeArea->Cs0ReadLong  = &AR4MCs0ReadLong;
@@ -1469,8 +1162,7 @@ int CartInit(const char *filename, int type)
             break;
         }
 
-        default:    // No Cart
-        {
+        default: {
             CartridgeArea->cartid = 0xFF;
             break;
         }
@@ -1478,8 +1170,6 @@ int CartInit(const char *filename, int type)
 
     return 0;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void CartFlush(void)
 {
@@ -1495,23 +1185,19 @@ void CartFlush(void)
             u32 size = 0;
 
             switch (CartridgeArea->carttype) {
-                case CART_BACKUPRAM4MBIT:    // 4 Mbit Backup Ram
-                {
+                case CART_BACKUPRAM4MBIT: {
                     size = CART_BUP4MBIT_SIZE;
                     break;
                 }
-                case CART_BACKUPRAM8MBIT:    // 8 Mbit Backup Ram
-                {
+                case CART_BACKUPRAM8MBIT: {
                     size = CART_BUP8MBIT_SIZE;
                     break;
                 }
-                case CART_BACKUPRAM16MBIT:    // 16 Mbit Backup Ram
-                {
+                case CART_BACKUPRAM16MBIT: {
                     size = CART_BUP16MBIT_SIZE;
                     break;
                 }
-                case CART_BACKUPRAM32MBIT:    // 32 Mbit Backup Ram
-                {
+                case CART_BACKUPRAM32MBIT: {
                     size = CART_BUP32MBIT_SIZE;
                     break;
                 }
@@ -1524,8 +1210,6 @@ void CartFlush(void)
         }
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void CartDeInit(void)
 {
@@ -1545,23 +1229,19 @@ void CartDeInit(void)
             u32 size = 0;
 
             switch (CartridgeArea->carttype) {
-                case CART_BACKUPRAM4MBIT:    // 4 Mbit Backup Ram
-                {
+                case CART_BACKUPRAM4MBIT: {
                     size = CART_BUP4MBIT_SIZE;
                     break;
                 }
-                case CART_BACKUPRAM8MBIT:    // 8 Mbit Backup Ram
-                {
+                case CART_BACKUPRAM8MBIT: {
                     size = CART_BUP8MBIT_SIZE;
                     break;
                 }
-                case CART_BACKUPRAM16MBIT:    // 16 Mbit Backup Ram
-                {
+                case CART_BACKUPRAM16MBIT: {
                     size = CART_BUP16MBIT_SIZE;
                     break;
                 }
-                case CART_BACKUPRAM32MBIT:    // 32 Mbit Backup Ram
-                {
+                case CART_BACKUPRAM32MBIT: {
                     size = CART_BUP32MBIT_SIZE;
                     break;
                 }
@@ -1583,18 +1263,14 @@ void CartDeInit(void)
     CartridgeArea = NULL;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 int CartSaveState(void **stream)
 {
     int offset;
 
     offset = MemStateWriteHeader(stream, "CART", 1);
 
-    // Write cart type
     MemStateWrite((void *)&CartridgeArea->carttype, 4, 1, stream);
 
-    // Write the areas associated with the cart type here
     switch (CartridgeArea->carttype) {
         case CART_DRAM8MBIT: {
             MemStateWrite((void *)CartridgeArea->dram, 1, 0x100000, stream);
@@ -1608,24 +1284,18 @@ int CartSaveState(void **stream)
     return MemStateFinishHeader(stream, offset);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 int CartLoadState(const void *stream, UNUSED int version, int size)
 {
     int newtype;
 
-    // Read cart type
     MemStateRead((void *)&newtype, 4, 1, stream);
 
-    // Check to see if old cart type and new cart type match, if they don't,
-    // reallocate memory areas
     if (newtype == CART_DRAM8MBIT || newtype == CART_DRAM32MBIT) {
         if (newtype != CartridgeArea->carttype) {
             CartDeInit();
             CartInit(NULL, newtype);
         }
 
-        // Read the areas associated with the cart type here
         switch (CartridgeArea->carttype) {
             case CART_DRAM8MBIT: {
                 MemStateRead((void *)CartridgeArea->dram, 1, 0x100000, stream);
@@ -1639,5 +1309,3 @@ int CartLoadState(const void *stream, UNUSED int version, int size)
     }
     return size;
 }
-
-//////////////////////////////////////////////////////////////////////////////

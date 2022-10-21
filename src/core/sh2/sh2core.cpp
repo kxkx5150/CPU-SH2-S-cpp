@@ -1,27 +1,3 @@
-/*  Copyright 2003-2005 Guillaume Duhamel
-    Copyright 2004-2005, 2013 Theo Berkau
-
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
-
-/*! \file sh2core.c
-    \brief SH2 shared emulation functions.
-*/
-
 #include <stdlib.h>
 #include "sh2core.h"
 #include "debug.h"
@@ -45,13 +21,10 @@ void InvalidateCache(SH2_struct *ctx);
 
 #define CACHE_LOG
 
-//////////////////////////////////////////////////////////////////////////////
-
 int SH2Init(int coreid)
 {
     int i;
 
-    // MSH2
     if ((MSH2 = (SH2_struct *)calloc(1, sizeof(SH2_struct))) == NULL)
         return -1;
 
@@ -59,7 +32,6 @@ int SH2Init(int coreid)
     MSH2->isslave     = 0;
     MSH2->trace       = 0;
 
-    // SSH2
     if ((SSH2 = (SH2_struct *)calloc(1, sizeof(SH2_struct))) == NULL)
         return -1;
 
@@ -67,7 +39,6 @@ int SH2Init(int coreid)
     SSH2->onchip.BCR1 = 0x8000;
     SSH2->isslave     = 1;
 
-    // #ifdef USE_CACHE
     MSH2->cacheOn = 0;
     SSH2->cacheOn = 0;
 
@@ -75,21 +46,15 @@ int SH2Init(int coreid)
     memset(MSH2->cacheTagArray, 0x0, 64 * 4 * sizeof(u32));
     memset(SSH2->tagWay, 0x4, 64 * 0x80000);
     memset(SSH2->cacheTagArray, 0x0, 64 * 4 * sizeof(u32));
-    // #endif
-    // So which core do we want?
     if (coreid == SH2CORE_DEFAULT)
-        coreid = 0;    // Assume we want the first one
+        coreid = 0;
 
-    // Go through core list and find the id
     for (i = 0; SH2CoreList[i] != NULL; i++) {
         if (SH2CoreList[i]) {
-            // Set to current core
             SH2Core = SH2CoreList[i];
             break;
         }
     }
-
-    printf("sh2 aaaaaaaaaaaaaaaaaaaaaaaaaa \n\r");
 
     if ((SH2Core == NULL) || (SH2Core->Init() != 0)) {
         free(MSH2);
@@ -97,15 +62,12 @@ int SH2Init(int coreid)
         MSH2 = SSH2 = NULL;
         return -1;
     }
-    printf("sh2 bbbbb \n\r");
 
     SH2Reset(MSH2);
     SH2Reset(SSH2);
 
     return 0;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void SH2DeInit()
 {
@@ -124,15 +86,11 @@ void SH2DeInit()
     SSH2 = NULL;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void SH2Reset(SH2_struct *context)
 {
     int i;
-    CACHE_LOG("%s reset\n", (context == SSH2) ? "SSH2" : "MSH2");
     SH2Core->Reset(context);
 
-    // Reset general registers
     for (i = 0; i < 15; i++)
         SH2Core->SetGPR(context, i, 0x00000000);
 
@@ -143,7 +101,6 @@ void SH2Reset(SH2_struct *context)
     SH2Core->SetMACL(context, 0x00000000);
     SH2Core->SetPR(context, 0x00000000);
 
-    // Internal variables
     context->delay  = 0x00000000;
     context->cycles = 0;
 
@@ -157,11 +114,9 @@ void SH2Reset(SH2_struct *context)
 
     context->cycleFrac = 0;
 
-    // Reset Interrupts
     memset((void *)context->interrupts, 0, sizeof(interrupt_struct) * MAX_INTERRUPTS);
     SH2Core->SetInterrupts(context, 0, context->interrupts);
 
-    // Reset Onchip modules
     OnchipReset(context);
     InvalidateCache(context);
 
@@ -171,8 +126,6 @@ void SH2Reset(SH2_struct *context)
 #endif
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void SH2PowerOn(SH2_struct *context)
 {
     u32 VBR = SH2Core->GetVBR(context);
@@ -180,8 +133,6 @@ void SH2PowerOn(SH2_struct *context)
     SH2Core->SetGPR(context, 15, SH2MappedMemoryReadLong(context, VBR + 4));
     CACHE_LOG("%s start\n", (context == SSH2) ? "SSH2" : "MSH2");
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL SH2TestExec(SH2_struct *context, u32 cycles)
 {
@@ -199,7 +150,6 @@ void FASTCALL SH2OnFrame(SH2_struct *context)
 {
     SH2Core->OnFrame(context);
 }
-//////////////////////////////////////////////////////////////////////////////
 
 void SH2SendInterrupt(SH2_struct *context, u8 vector, u8 level)
 {
@@ -211,15 +161,11 @@ void SH2RemoveInterrupt(SH2_struct *context, u8 vector, u8 level)
     SH2Core->RemoveInterrupt(context, vector, level);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void SH2NMI(SH2_struct *context)
 {
     context->onchip.ICR |= 0x8000;
     SH2SendInterrupt(context, 0xB, 0x10);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void SH2GetRegisters(SH2_struct *context, sh2regs_struct *r)
 {
@@ -228,8 +174,6 @@ void SH2GetRegisters(SH2_struct *context, sh2regs_struct *r)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void SH2SetRegisters(SH2_struct *context, sh2regs_struct *r)
 {
     if (r != NULL) {
@@ -237,17 +181,11 @@ void SH2SetRegisters(SH2_struct *context, sh2regs_struct *r)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void SH2WriteNotify(SH2_struct *context, u32 start, u32 length)
 {
     if (SH2Core->WriteNotify)
         SH2Core->WriteNotify(start, length);
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// Onchip specific
-//////////////////////////////////////////////////////////////////////////////
 
 void OnchipReset(SH2_struct *context)
 {
@@ -294,7 +232,7 @@ void OnchipReset(SH2_struct *context)
     context->onchip.CHCR0     = 0x00000000;
     context->onchip.CHCR1     = 0x00000000;
     context->onchip.DMAOR     = 0x00000000;
-    context->onchip.BCR1 &= 0x8000;    // preserve MASTER bit
+    context->onchip.BCR1 &= 0x8000;
     context->onchip.BCR1 |= 0x03F0;
     context->onchip.BCR2  = 0x00FC;
     context->onchip.WCR   = 0xAAFF;
@@ -304,43 +242,21 @@ void OnchipReset(SH2_struct *context)
     context->onchip.RTCOR = 0x0000;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 u8 FASTCALL OnchipReadByte(SH2_struct *context, u32 addr)
 {
     switch (addr) {
         case 0x000:
             return context->onchip.SMR;
         case 0x001:
-            //         LOG("Bit Rate Register read: %02X\n", context->onchip.BRR);
             return context->onchip.BRR;
         case 0x002:
-            //         LOG("Serial Control Register read: %02X\n", context->onchip.SCR);
             return context->onchip.SCR;
         case 0x003:
-            //         LOG("Transmit Data Register read: %02X\n", context->onchip.TDR);
             return context->onchip.TDR;
         case 0x004:
-            //         LOG("Serial Status Register read: %02X\n", context->onchip.SSR);
 
-            /*
-                     // if Receiver is enabled, clear SSR's TDRE bit, set SSR's RDRF and update RDR.
-
-                     if (context->onchip.SCR & 0x10)
-                     {
-                        context->onchip.RDR = SCIReceiveByte();
-                        context->onchip.SSR = (context->onchip.SSR & 0x7F) | 0x40;
-                     }
-                     // if Transmitter is enabled, clear SSR's RDRF bit, and set SSR's TDRE bit.
-                     else if (context->onchip.SCR & 0x20)
-                     {
-                        context->onchip.SSR = (context->onchip.SSR & 0xBF) | 0x80;
-                     }
-            */
             return context->onchip.SSR;
         case 0x005:
-            //         LOG("Receive Data Register read: %02X PC = %08X\n", context->onchip.RDR,
-            //         SH2Core->GetPC(context));
             return context->onchip.RDR;
         case 0x010:
             return context->onchip.TIER;
@@ -410,8 +326,6 @@ u8 FASTCALL OnchipReadByte(SH2_struct *context, u32 addr)
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 u16 FASTCALL OnchipReadWord(SH2_struct *context, u32 addr)
 {
     switch (addr) {
@@ -431,7 +345,7 @@ u16 FASTCALL OnchipReadWord(SH2_struct *context, u32 addr)
             return context->onchip.IPRA;
         case 0x0E4:
             return context->onchip.VCRWDT;
-        case 0x1E2:    // real BCR1 register is located at 0x1E2-0x1E3; Sega Rally OK
+        case 0x1E2:
             return context->onchip.BCR1;
         case 0x1E6:
             return context->onchip.BCR2;
@@ -453,15 +367,13 @@ u16 FASTCALL OnchipReadWord(SH2_struct *context, u32 addr)
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 u32 FASTCALL OnchipReadLong(SH2_struct *context, u32 addr)
 {
     switch (addr) {
         case 0x100:
         case 0x120:
             return context->onchip.DVSR;
-        case 0x104:    // DVDNT
+        case 0x104:
         case 0x124:
             return context->onchip.DVDNTL;
         case 0x108:
@@ -476,11 +388,11 @@ u32 FASTCALL OnchipReadLong(SH2_struct *context, u32 addr)
         case 0x114:
         case 0x134:
             return context->onchip.DVDNTL;
-        case 0x118:    // Acts as a separate register, but is set to the same value
-        case 0x138:    // as DVDNTH after division
+        case 0x118:
+        case 0x138:
             return context->onchip.DVDNTUH;
-        case 0x11C:    // Acts as a separate register, but is set to the same value
-        case 0x13C:    // as DVDNTL after division
+        case 0x11C:
+        case 0x13C:
             return context->onchip.DVDNTUL;
         case 0x180:
             return context->onchip.SAR0;
@@ -527,43 +439,31 @@ u32 FASTCALL OnchipReadLong(SH2_struct *context, u32 addr)
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void FASTCALL OnchipWriteByte(SH2_struct *context, u32 addr, u8 val)
 {
     switch (addr) {
         case 0x000:
-            //         LOG("Serial Mode Register write: %02X\n", val);
             context->onchip.SMR = val;
             return;
         case 0x001:
-            //         LOG("Bit Rate Register write: %02X\n", val);
             context->onchip.BRR = val;
             return;
         case 0x002:
-            //         LOG("Serial Control Register write: %02X\n", val);
 
-            // If Transmitter is getting disabled, set TDRE
             if (!(val & 0x20))
                 context->onchip.SSR |= 0x80;
 
             context->onchip.SCR = val;
             return;
         case 0x003:
-            //         LOG("Transmit Data Register write: %02X. PC = %08X\n", val, SH2Core->GetPC(context));
             context->onchip.TDR = val;
             return;
         case 0x004:
-            //         LOG("Serial Status Register write: %02X\n", val);
 
             if (context->onchip.SCR & 0x20) {
-                // Transmitter Mode
 
-                // If the TDRE bit cleared, let's do a transfer
                 if (!(val & 0x80))
                     SCITransmitByte(context->onchip.TDR);
-
-                // Generate an interrupt if need be here
             }
             return;
         case 0x010:
@@ -685,8 +585,6 @@ void FASTCALL OnchipWriteByte(SH2_struct *context, u32 addr, u8 val)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void FASTCALL OnchipWriteWord(SH2_struct *context, u32 addr, u16 val)
 {
     switch (addr) {
@@ -706,11 +604,8 @@ void FASTCALL OnchipWriteWord(SH2_struct *context, u32 addr, u16 val)
             context->onchip.VCRD = val & 0x7F7F;
             return;
         case 0x080:
-            // This and RSTCSR have got to be the most wackiest register
-            // mappings I've ever seen
 
             if (val >> 8 == 0xA5) {
-                // WTCSR
                 switch (val & 7) {
                     case 0:
                         context->wdt.shift = 1;
@@ -743,16 +638,13 @@ void FASTCALL OnchipWriteWord(SH2_struct *context, u32 addr, u16 val)
 
                 context->onchip.WTCSR = (u8)val | 0x18;
             } else if (val >> 8 == 0x5A) {
-                // WTCNT
                 context->onchip.WTCNT = (u8)val;
             }
             return;
         case 0x082:
             if (val == 0xA500)
-                // clear WOVF bit
                 context->onchip.RSTCSR &= 0x7F;
             else if (val >> 8 == 0x5A)
-                // RSTE and RSTS bits
                 context->onchip.RSTCSR = (context->onchip.RSTCSR & 0x80) | (val & 0x60) | 0x1F;
             return;
         case 0x092:
@@ -791,8 +683,6 @@ void FASTCALL OnchipWriteWord(SH2_struct *context, u32 addr, u16 val)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
 {
     switch (addr) {
@@ -806,12 +696,10 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
         case 0x120:
             context->onchip.DVSR = val;
             return;
-        case 0x104:    // 32-bit / 32-bit divide operation
+        case 0x104:
         case 0x124: {
             s32 divisor = (s32)context->onchip.DVSR;
             if (divisor == 0) {
-                // Regardless of what DVDNTL is set to, the top 3 bits
-                // are used to create the new DVDNTH value
                 if (val & 0x80000000) {
                     context->onchip.DVDNTL = 0x80000000;
                     context->onchip.DVDNTH = 0xFFFFFFFC | ((val >> 29) & 0x3);
@@ -832,7 +720,7 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
                 if (quotient > 0x7FFFFFFF) {
                     context->onchip.DVCR |= 1;
                     context->onchip.DVDNTL = 0x7FFFFFFF;
-                    context->onchip.DVDNTH = 0xFFFFFFFE;    // fix me
+                    context->onchip.DVDNTH = 0xFFFFFFFE;
 
                     if (context->onchip.DVCR & 0x2) {
                         SH2SendInterrupt(context, context->onchip.VCRDIV & 0x7F, (context->onchip.IPRA >> 12) & 0xF);
@@ -840,7 +728,7 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
                 } else if ((s32)((s64)quotient >> 32) < -1) {
                     context->onchip.DVCR |= 1;
                     context->onchip.DVDNTL = 0x80000000;
-                    context->onchip.DVDNTH = 0xFFFFFFFE;    // fix me
+                    context->onchip.DVDNTH = 0xFFFFFFFE;
 
                     if (context->onchip.DVCR & 0x2) {
                         SH2SendInterrupt(context, context->onchip.VCRDIV & 0x7F, (context->onchip.IPRA >> 12) & 0xF);
@@ -868,7 +756,7 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
             context->onchip.DVDNTH = val;
             return;
         case 0x114:
-        case 0x134: {    // 64-bit / 32-bit divide operation
+        case 0x134: {
             s32 divisor  = (s32)context->onchip.DVSR;
             s64 dividend = context->onchip.DVDNTH;
             dividend     = (s64)(((u64)dividend) << 32);
@@ -877,10 +765,10 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
             if (divisor == 0) {
                 if (context->onchip.DVDNTH & 0x80000000) {
                     context->onchip.DVDNTL = 0x80000000;
-                    context->onchip.DVDNTH = context->onchip.DVDNTH << 3;    // fix me
+                    context->onchip.DVDNTH = context->onchip.DVDNTH << 3;
                 } else {
                     context->onchip.DVDNTL = 0x7FFFFFFF;
-                    context->onchip.DVDNTH = context->onchip.DVDNTH << 3;    // fix me
+                    context->onchip.DVDNTH = context->onchip.DVDNTH << 3;
                 }
 
                 context->onchip.DVDNTUL = context->onchip.DVDNTL;
@@ -896,14 +784,14 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
                 if (quotient > 0x7FFFFFFF) {
                     context->onchip.DVCR |= 1;
                     context->onchip.DVDNTL = 0x7FFFFFFF;
-                    context->onchip.DVDNTH = 0xFFFFFFFE;    // fix me
+                    context->onchip.DVDNTH = 0xFFFFFFFE;
 
                     if (context->onchip.DVCR & 0x2)
                         SH2SendInterrupt(context, context->onchip.VCRDIV & 0x7F, (context->onchip.IPRA >> 12) & 0xF);
                 } else if ((s32)(quotient >> 32) < -1) {
                     context->onchip.DVCR |= 1;
                     context->onchip.DVDNTL = 0x80000000;
-                    context->onchip.DVDNTH = 0xFFFFFFFE;    // fix me
+                    context->onchip.DVDNTH = 0xFFFFFFFE;
 
                     if (context->onchip.DVCR & 0x2)
                         SH2SendInterrupt(context, context->onchip.VCRDIV & 0x7F, (context->onchip.IPRA >> 12) & 0xF);
@@ -943,9 +831,6 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
         case 0x18C:
             context->onchip.CHCR0 = val & 0xFFFF;
 
-            // If the DMAOR DME bit is set and AE and NMIF bits are cleared,
-            // and CHCR's DE bit is set and TE bit is cleared,
-            // do a dma transfer
             if ((context->onchip.DMAOR & 7) == 1 && (val & 0x3) == 1)
                 DMAExec(context);
             return;
@@ -963,9 +848,6 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
 
             context->onchip.CHCR1 = (val & ~2) | (context->onchip.CHCR1 & (val | context->onchip.CHCR1M) & 2);
 
-            // If the DMAOR DME bit is set and AE and NMIF bits are cleared,
-            // and CHCR's DE bit is set and TE bit is cleared,
-            // do a dma transfer
             if ((context->onchip.DMAOR & 7) == 1 && (context->onchip.CHCR1 & 0x3) == 1)
                 DMAExec(context);
             return;
@@ -978,9 +860,6 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
         case 0x1B0:
             context->onchip.DMAOR = val & 0xF;
 
-            // If the DMAOR DME bit is set and AE and NMIF bits are cleared,
-            // and CHCR's DE bit is set and TE bit is cleared,
-            // do a dma transfer
             if ((val & 7) == 1)
                 DMAExec(context);
             return;
@@ -1008,12 +887,8 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
             break;
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
-#ifdef USE_CACHE
 static void UpdateLRU(SH2_struct *context, u8 line, u8 way)
 {
-    // Table 8.3 SH7604_Hardware_Manual.pdf
     switch (way) {
         case 0:
             context->cacheLRU[line] &= 0x7;
@@ -1032,15 +907,12 @@ static void UpdateLRU(SH2_struct *context, u8 line, u8 way)
         default:
             break;
     }
-    // CACHE_LOG("%s : Update Line %d => way %d\n", (context==SSH2)?"SSH2":"MSH2", line, way);
 }
 
 static u8 getLRU(SH2_struct *context, u32 tag, u8 line)
 {
-    // Table 8.3 SH7604_Hardware_Manual.pdf
     u8 way = -1;
-    if (context->onchip.CCR & (1 << 3))    // 2-way mode
-    {
+    if (context->onchip.CCR & (1 << 3)) {
         if ((context->cacheLRU[line] & 1) == 1)
             return 2;
         else
@@ -1054,16 +926,12 @@ static u8 getLRU(SH2_struct *context, u32 tag, u8 line)
             way = 2;
         else if ((context->cacheLRU[line] & 0x0B) == 0x0)
             way = 3;
-        // Init phase
         else if (context->cacheLRU[line] == 0xB)
             way = 2;
-        // Shall never be reached
         else if (context->cacheLRU[line] == 0x1E)
             way = 1;
         else if (context->cacheLRU[line] == 0x38)
             way = 0;
-
-        // CACHE_LOG("%s : Line %d => way %d\n", (context==SSH2)?"SSH2":"MSH2", line, way);
     }
     return way;
 }
@@ -1111,21 +979,10 @@ void CacheWrite(SH2_struct *context, u8 *mem, u32 addr, u32 val, u8 size)
     u8  ret  = 0;
     if (byte + size > 16)
         CACHE_LOG("!!!!!!!!!!!!!!!! Warn out of line....\n");
-    // CACHE_LOG("Write (%d %x) tag %x **** %x (%x %x)\n", line, way, context->cacheTagArray[line][way], tag, addr,
-    // val);
     if ((way <= 0x3) && (context->cacheTagArray[line][way] == tag)) {
-        // Cache hit => update cache
-        // CACHE_LOG("Hit Write (%d %x) tag %x **** %x (%x %x)\n", line, way, context->cacheTagArray[line][way], tag,
-        // addr, val);
         UpdateLRU(context, line, way);
         CacheWriteVal(context, addr, val, size);
-        // for (int i =0; i<=0xF; i++) {
-        //   printf("%x ", context->cacheData[line][way][i]);
-        // }
-        // printf("\n");
     }
-    // else   CACHE_LOG("Write Miss (%d %x) tag %x **** %x (%x %x)\n", line, way, context->cacheTagArray[line][way],
-    // tag, addr, val);
     CacheWriteThrough(context, mem, addr, val, size);
 }
 
@@ -1141,22 +998,18 @@ void CacheWriteLong(SH2_struct *context, u8 *mem, u32 addr, u32 val)
 {
     CacheWrite(context, mem, addr, val, 4);
 }
-#endif
 
 void InvalidateCache(SH2_struct *ctx)
 {
-#ifdef USE_CACHE
     if (yabsys.usecache == 0)
         return;
     memset(ctx->cacheLRU, 0, 64);
     memset(ctx->tagWay, 0x4, 64 * 0x80000);
     memset(ctx->cacheTagArray, 0x0, 64 * 4 * sizeof(u32));
-#endif
 }
 
 void enableCache(SH2_struct *context)
 {
-#ifdef USE_CACHE
     int i;
     if (yabsys.usecache == 0)
         return;
@@ -1172,14 +1025,10 @@ void enableCache(SH2_struct *context)
             CacheWriteLongList[i] = CacheWriteLong;
         }
     }
-#else
-    return;
-#endif
 }
 
 void disableCache(SH2_struct *context)
 {
-#ifdef USE_CACHE
     int i;
     if (context->cacheOn == 1) {
         context->cacheOn = 0;
@@ -1193,12 +1042,7 @@ void disableCache(SH2_struct *context)
         }
         InvalidateCache(context);
     }
-#else
-    return;
-#endif
 }
-
-#ifdef USE_CACHE
 void CacheFetch(SH2_struct *context, u8 *memory, u32 addr, u8 way)
 {
     u8  line = (addr >> 4) & 0x3F;
@@ -1209,12 +1053,7 @@ void CacheFetch(SH2_struct *context, u8 *memory, u32 addr, u8 way)
     for (int i = 0; i < 4; i++) {
         u32 ret = ReadLongList[(addr >> 16) & 0xFFF](context, memory, (addr & (~0xF)) | (i * 4));
         CacheWriteVal(context, (addr & (~0xF)) | (i * 4), ret, 4);
-        // printf("Fetch (%x) (%d)=%x\n", (addr&(~0xF))|(i*4), i, ret);
     }
-    // for (int i =0; i<=0xF; i++) {
-    //   printf("%x ", context->cacheData[line][way][i]);
-    // }
-    // printf("\n");
 }
 
 u8 CacheReadByte(SH2_struct *context, u8 *memory, u32 addr)
@@ -1321,11 +1160,8 @@ u32 CacheReadLong(SH2_struct *context, u8 *memory, u32 addr)
 #endif
     return ret;
 }
-#endif
-
 void CacheInvalidate(SH2_struct *context, u32 addr)
 {
-#ifdef USE_CACHE
     if (yabsys.usecache == 0)
         return;
     u8  line                   = (addr >> 4) & 0x3F;
@@ -1335,28 +1171,21 @@ void CacheInvalidate(SH2_struct *context, u32 addr)
     if (way <= 0x3)
         context->cacheTagArray[line][way] = 0x0;
     context->cacheLRU[line] = 0;
-#endif
 }
 
 u32 FASTCALL AddressArrayReadLong(SH2_struct *context, u32 addr)
 {
-#ifdef USE_CACHE
     if (yabsys.usecache == 0)
         return 0;
     u8 line = (addr >> 4) & 0x3F;
     u8 way  = (context->onchip.CCR >> 6) & 0x3;
     return ((context->cacheLRU[line] & 0x3F) << 4) | ((context->cacheTagArray[line][way] & 0x7FFFF) << 10) |
            ((context->cacheTagArray[line][way] != 0x0) << 1);
-#else
     return 0;
-#endif
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL AddressArrayWriteLong(SH2_struct *context, u32 addr, u32 val)
 {
-#ifdef USE_CACHE
     if (yabsys.usecache == 0)
         return;
     u8  line                = (addr >> 4) & 0x3F;
@@ -1371,52 +1200,37 @@ void FASTCALL AddressArrayWriteLong(SH2_struct *context, u32 addr, u32 val)
         context->tagWay[line][tag]        = 0x4;
         context->cacheTagArray[line][way] = 0x0;
     }
-#endif
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 u8 FASTCALL DataArrayReadByte(SH2_struct *context, u32 addr)
 {
     return T2ReadByte(context->DataArray, addr & 0xFFF);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 u16 FASTCALL DataArrayReadWord(SH2_struct *context, u32 addr)
 {
     return T2ReadWord(context->DataArray, addr & 0xFFF);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 u32 FASTCALL DataArrayReadLong(SH2_struct *context, u32 addr)
 {
     return T2ReadLong(context->DataArray, addr & 0xFFF);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void FASTCALL DataArrayWriteByte(SH2_struct *context, u32 addr, u8 val)
 {
     T2WriteByte(context->DataArray, addr & 0xFFF, val);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL DataArrayWriteWord(SH2_struct *context, u32 addr, u16 val)
 {
     T2WriteWord(context->DataArray, addr & 0xFFF, val);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void FASTCALL DataArrayWriteLong(SH2_struct *context, u32 addr, u32 val)
 {
     T2WriteLong(context->DataArray, addr & 0xFFF, val);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void FRTExec(SH2_struct *context, u32 cycles)
 {
@@ -1427,50 +1241,37 @@ void FRTExec(SH2_struct *context, u32 cycles)
     frcold = frctemp = (u32)context->onchip.FRC.all;
     mask             = (1 << context->frc.shift) - 1;
 
-    // Increment FRC
     frctemp += ((cycles + context->frc.leftover) >> context->frc.shift);
     context->frc.leftover = (cycles + context->frc.leftover) & mask;
 
-    // Check to see if there is or was a Output Compare A match
     if (frctemp >= context->onchip.OCRA && frcold < context->onchip.OCRA) {
-        // Do we need to trigger an interrupt?
         if (context->onchip.TIER & 0x8)
             SH2SendInterrupt(context, context->onchip.VCRC & 0x7F, (context->onchip.IPRB & 0xF00) >> 8);
 
-        // Do we need to clear the FRC?
         if (context->onchip.FTCSR & 0x1) {
             frctemp               = 0;
             context->frc.leftover = 0;
         }
 
-        // Set OCFA flag
         context->onchip.FTCSR |= 0x8;
     }
 
-    // Check to see if there is or was a Output Compare B match
     if (frctemp >= context->onchip.OCRB && frcold < context->onchip.OCRB) {
-        // Do we need to trigger an interrupt?
         if (context->onchip.TIER & 0x4)
             SH2SendInterrupt(context, context->onchip.VCRC & 0x7F, (context->onchip.IPRB & 0xF00) >> 8);
 
-        // Set OCFB flag
         context->onchip.FTCSR |= 0x4;
     }
 
-    // If FRC overflows, set overflow flag
     if (frctemp > 0xFFFF) {
-        // Do we need to trigger an interrupt?
         if (context->onchip.TIER & 0x2)
             SH2SendInterrupt(context, (context->onchip.VCRD >> 8) & 0x7F, (context->onchip.IPRB & 0xF00) >> 8);
 
         context->onchip.FTCSR |= 2;
     }
 
-    // Write new FRC value
     context->onchip.FRC.all = frctemp;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void WDTExec(SH2_struct *context, u32 cycles)
 {
@@ -1485,40 +1286,28 @@ void WDTExec(SH2_struct *context, u32 cycles)
     wdttemp += ((cycles + context->wdt.leftover) >> context->wdt.shift);
     context->wdt.leftover = (cycles + context->wdt.leftover) & mask;
 
-    // Are we overflowing?
     if (wdttemp > 0xFF) {
-        // Obviously depending on whether or not we're in Watchdog or Interval
-        // Modes, they'll handle an overflow differently.
 
         if (context->wdt.isinterval) {
-            // Interval Timer Mode
 
-            // Set OVF flag
             context->onchip.WTCSR |= 0x80;
 
-            // Trigger interrupt
             SH2SendInterrupt(context, (context->onchip.VCRWDT >> 8) & 0x7F, (context->onchip.IPRA >> 4) & 0xF);
         } else {
-            // Watchdog Timer Mode(untested)
             LOG("Watchdog timer(WDT mode) overflow not implemented\n");
         }
     }
 
-    // Write new WTCNT value
     context->onchip.WTCNT = (u8)wdttemp;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void DMAExec(SH2_struct *context)
 {
-    // If AE and NMIF bits are set, we can't continue
     if (context->onchip.DMAOR & 0x6)
         return;
 
-    if (((context->onchip.CHCR0 & 0x3) == 0x01) &&
-        ((context->onchip.CHCR1 & 0x3) == 0x01)) {    // both channel wants DMA
-        if (context->onchip.DMAOR & 0x8) {            // round robin priority
+    if (((context->onchip.CHCR0 & 0x3) == 0x01) && ((context->onchip.CHCR1 & 0x3) == 0x01)) {
+        if (context->onchip.DMAOR & 0x8) {
             LOG("dma\t: FIXME: two channel dma - round robin priority not properly implemented\n");
             DMATransfer(context, &context->onchip.CHCR0, &context->onchip.SAR0, &context->onchip.DAR0,
                         &context->onchip.TCR0, &context->onchip.VCRDMA0);
@@ -1526,20 +1315,20 @@ void DMAExec(SH2_struct *context)
                         &context->onchip.TCR1, &context->onchip.VCRDMA1);
 
             context->onchip.CHCR1M |= 2;
-        } else {    // channel 0 > channel 1 priority
+        } else {
             DMATransfer(context, &context->onchip.CHCR0, &context->onchip.SAR0, &context->onchip.DAR0,
                         &context->onchip.TCR0, &context->onchip.VCRDMA0);
             DMATransfer(context, &context->onchip.CHCR1, &context->onchip.SAR1, &context->onchip.DAR1,
                         &context->onchip.TCR1, &context->onchip.VCRDMA1);
             context->onchip.CHCR1M |= 2;
         }
-    } else {                                              // only one channel wants DMA
-        if (((context->onchip.CHCR0 & 0x3) == 0x01)) {    // DMA for channel 0
+    } else {
+        if (((context->onchip.CHCR0 & 0x3) == 0x01)) {
             DMATransfer(context, &context->onchip.CHCR0, &context->onchip.SAR0, &context->onchip.DAR0,
                         &context->onchip.TCR0, &context->onchip.VCRDMA0);
             return;
         }
-        if (((context->onchip.CHCR1 & 0x3) == 0x01)) {    // DMA for channel 1
+        if (((context->onchip.CHCR1 & 0x3) == 0x01)) {
             DMATransfer(context, &context->onchip.CHCR1, &context->onchip.SAR1, &context->onchip.DAR1,
                         &context->onchip.TCR1, &context->onchip.VCRDMA1);
             context->onchip.CHCR1M |= 2;
@@ -1548,14 +1337,12 @@ void DMAExec(SH2_struct *context)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void DMATransfer(SH2_struct *context, u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA)
 {
     int size;
     u32 i, i2;
 
-    if (!(*CHCR & 0x2)) {    // TE is not set
+    if (!(*CHCR & 0x2)) {
         int srcInc;
         int destInc;
 
@@ -1647,74 +1434,53 @@ void DMATransfer(SH2_struct *context, u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u
     if (*CHCR & 0x4)
         SH2SendInterrupt(context, *VCRDMA, (context->onchip.IPRA & 0xF00) >> 8);
 
-    // Set Transfer End bit
     *CHCR |= 0x2;
 }
 
 extern u8 execInterrupt;
 
-//////////////////////////////////////////////////////////////////////////////
-// Input Capture Specific
-//////////////////////////////////////////////////////////////////////////////
-
 void FASTCALL MSH2InputCaptureWriteWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u16 data)
 {
-    // Set Input Capture Flag
     MSH2->onchip.FTCSR |= 0x80;
 
-    // Copy FRC register to FICR
     MSH2->onchip.FICR = MSH2->onchip.FRC.all;
 
     LOG("MSH2InputCapture\n");
 
-    // Time for an Interrupt?
     if (MSH2->onchip.TIER & 0x80) {
         SH2SendInterrupt(MSH2, (MSH2->onchip.VCRC >> 8) & 0x7F, (MSH2->onchip.IPRB >> 8) & 0xF);
         execInterrupt = 1;
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void FASTCALL SSH2InputCaptureWriteWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u16 data)
 {
-    // Set Input Capture Flag
     SSH2->onchip.FTCSR |= 0x80;
 
-    // Copy FRC register to FICR
     SSH2->onchip.FICR = SSH2->onchip.FRC.all;
 
     LOG("SSH2InputCapture\n");
 
-    // Time for an Interrupt?
     if (SSH2->onchip.TIER & 0x80) {
         SH2SendInterrupt(SSH2, (SSH2->onchip.VCRC >> 8) & 0x7F, (SSH2->onchip.IPRB >> 8) & 0xF);
         execInterrupt = 1;
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// SCI Specific
-//////////////////////////////////////////////////////////////////////////////
-
 u8 SCIReceiveByte(void)
 {
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void SCITransmitByte(UNUSED u8 val)
 {
 }
 
-//////////////////////////////////////////////////////////////////////////////
 int SH2SaveState(SH2_struct *context, void **stream)
 {
     int            offset;
     sh2regs_struct regs;
 
-    // Write header
     if (context->isslave == 0)
         offset = MemStateWriteHeader(stream, "MSH2", 3);
     else {
@@ -1722,17 +1488,11 @@ int SH2SaveState(SH2_struct *context, void **stream)
         MemStateWrite((void *)&yabsys.IsSSH2Running, 1, 1, stream);
     }
 
-    // Write registers
     SH2GetRegisters(context, &regs);
     MemStateWrite((void *)&regs, sizeof(sh2regs_struct), 1, stream);
 
-    // Write onchip registers
     MemStateWrite((void *)&context->onchip, sizeof(Onchip_struct), 1, stream);
 
-    // Write internal variables
-    // FIXME: write the clock divisor rather than the shift amount for
-    // backward compatibility (fix this next time the save state version
-    // is updated)
     context->frc.shift = 1 << context->frc.shift;
     MemStateWrite((void *)&context->frc, sizeof(context->frc), 1, stream);
     {
@@ -1756,42 +1516,46 @@ int SH2SaveState(SH2_struct *context, void **stream)
 
     return MemStateFinishHeader(stream, offset);
 }
-//////////////////////////////////////////////////////////////////////////////
 
-int SH2LoadState(SH2_struct *context, FILE *fp, UNUSED int version, int size)
+int SH2LoadState(SH2_struct *context, const void *stream, UNUSED int version, int size)
 {
-    IOCheck_struct check = {0, 0};
     sh2regs_struct regs;
 
     SH2Reset(context);
 
     if (context->isslave == 1)
-        yread(&check, (void *)&yabsys.IsSSH2Running, 1, 1, fp);
+        MemStateRead((void *)&yabsys.IsSSH2Running, 1, 1, stream);
 
-    // Read registers
-    yread(&check, (void *)&regs, sizeof(sh2regs_struct), 1, fp);
+    MemStateRead((void *)&regs, sizeof(sh2regs_struct), 1, stream);
     SH2SetRegisters(context, &regs);
 
-    // Read onchip registers
-    yread(&check, (void *)&context->onchip, sizeof(Onchip_struct), 1, fp);
+    if (version < 2) {
+        MemStateRead((void *)&context->onchip, sizeof(Onchip_struct) - sizeof(u32), 1, stream);
+    } else {
+        MemStateRead((void *)&context->onchip, sizeof(Onchip_struct), 1, stream);
+    }
 
-    // Read internal variables
-    yread(&check, (void *)&context->frc, sizeof(context->frc), 1, fp);
-    {    // FIXME: backward compatibility hack (see SH2SaveState() comment)
+    MemStateRead((void *)&context->frc, sizeof(context->frc), 1, stream);
+    {
         u32 div            = context->frc.shift;
         context->frc.shift = 0;
         while ((div >>= 1) != 0)
             context->frc.shift++;
     }
-    yread(&check, (void *)context->interrupts, sizeof(interrupt_struct), MAX_INTERRUPTS, fp);
-    yread(&check, (void *)&context->NumberOfInterrupts, sizeof(u32), 1, fp);
+    MemStateRead((void *)context->interrupts, sizeof(interrupt_struct), MAX_INTERRUPTS, stream);
+    MemStateRead((void *)&context->NumberOfInterrupts, sizeof(u32), 1, stream);
     SH2Core->SetInterrupts(context, context->NumberOfInterrupts, context->interrupts);
-    yread(&check, (void *)context->AddressArray, sizeof(u32), 0x100, fp);
-    yread(&check, (void *)context->DataArray, sizeof(u8), 0x1000, fp);
-    yread(&check, (void *)&context->delay, sizeof(u32), 1, fp);
-    yread(&check, (void *)&context->cycles, sizeof(u32), 1, fp);
-    yread(&check, (void *)&context->isslave, sizeof(u8), 1, fp);
-    yread(&check, (void *)&context->instruction, sizeof(u16), 1, fp);
+    MemStateRead((void *)context->AddressArray, sizeof(u32), 0x100, stream);
+    MemStateRead((void *)context->DataArray, sizeof(u8), 0x1000, stream);
+    MemStateRead((void *)&context->delay, sizeof(u32), 1, stream);
+    MemStateRead((void *)&context->cycles, sizeof(u32), 1, stream);
+    MemStateRead((void *)&context->isslave, sizeof(u8), 1, stream);
+    MemStateRead((void *)&context->instruction, sizeof(u16), 1, stream);
+
+    if (version >= 3) {
+        MemStateRead((void *)&context->dma_ch0.copy_clock, sizeof(u32), 1, stream);
+        MemStateRead((void *)&context->dma_ch1.copy_clock, sizeof(u32), 1, stream);
+    }
 
     return size;
 }
@@ -1799,5 +1563,3 @@ int SH2LoadState(SH2_struct *context, FILE *fp, UNUSED int version, int size)
 void SH2DumpHistory(SH2_struct *context)
 {
 }
-
-//////////////////////////////////////////////////////////////////////////////

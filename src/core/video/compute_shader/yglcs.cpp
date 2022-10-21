@@ -1,23 +1,3 @@
-/*  Copyright 2005-2006 Guillaume Duhamel
-    Copyright 2005-2006 Theo Berkau
-    Copyright 2011-2015 Shinya Miyamoto(devmiyax)
-
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
 
 
 #include <stdlib.h>
@@ -28,7 +8,6 @@
 #include "debug.h"
 #include "error.h"
 #include "vdp1_compute.h"
-// #include "perfetto_trace.h"
 
 #define YGLDEBUG
 
@@ -52,7 +31,6 @@ extern u32 *vdp1_read();
 extern void vdp1_write();
 extern u32 *manualfb;
 
-//////////////////////////////////////////////////////////////////////////////
 void YglEraseWriteCSVDP1(int id)
 {
 
@@ -88,11 +66,9 @@ void YglEraseWriteCSVDP1(int id)
         }
     }
 
-
     FRAMELOG("YglEraseWriteVDP1xx: clear %d\n", id);
     vdp1_clear(id, col);
 
-    // Get back to drawframe
     glBindFramebuffer(GL_FRAMEBUFFER, _Ygl->default_fbo);
 }
 
@@ -101,11 +77,8 @@ void YglCSFinsihDraw(void)
     vdp1_wait_regenerate();
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void YglCSRenderVDP1(void)
 {
-    // TRACE_RENDER("YglCSRenderVDP1");
     FRAMELOG("YglCSRenderVDP1: drawframe =%d %d\n", _Ygl->drawframe, yabsys.LineCount);
     vdp1_compute();
 }
@@ -129,7 +102,6 @@ static void YglSetVDP1FB(int i)
 {
     if (_Ygl->vdp1IsNotEmpty != 0) {
         _Ygl->vdp1On[i] = 1;
-        // Arevoir ca risque de ne pas fonctionner
         vdp1_set_directFB();
         _Ygl->vdp1IsNotEmpty = 0;
     }
@@ -137,12 +109,10 @@ static void YglSetVDP1FB(int i)
 
 static void YglUpdateVDP1FB(void)
 {
-    // Le directFB utilise drawframe
     YglSetVDP1FB(_Ygl->readframe);
 }
 
 static int warning = 0;
-
 
 GLuint GetCSVDP1fb(int id)
 {
@@ -167,14 +137,12 @@ void finishCSRender()
     glDisable(GL_SCISSOR_TEST);
     glDisable(GL_STENCIL_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    // OSDDisplayMessages(NULL,0,0);
 
     _Ygl->sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }
 
 void YglCSRender(Vdp2 *varVdp2Regs)
 {
-    // TRACE_RENDER("YglCSRender");
 
     GLuint       cprg = 0;
     GLuint       srcTexture;
@@ -258,7 +226,6 @@ void YglCSRender(Vdp2 *varVdp2Regs)
             break;
     }
 
-
     glViewport(0, 0, GlWidth, GlHeight);
 
     glBindFramebuffer(GL_FRAMEBUFFER, _Ygl->default_fbo);
@@ -268,12 +235,7 @@ void YglCSRender(Vdp2 *varVdp2Regs)
 
     glBindFramebuffer(GL_FRAMEBUFFER, _Ygl->original_fbo);
     glDrawBuffers(NB_RENDER_LAYER, &DrawBuffers[0]);
-    // glClearBufferfv(GL_COLOR, 0, col);
 #ifdef DEBUG_BLIT
-    // glClearBufferfv(GL_COLOR, 1, col);
-    // glClearBufferfv(GL_COLOR, 2, col);
-    // glClearBufferfv(GL_COLOR, 3, col);
-    // glClearBufferfv(GL_COLOR, 4, col);
 #endif
 
     glDepthMask(GL_FALSE);
@@ -282,8 +244,6 @@ void YglCSRender(Vdp2 *varVdp2Regs)
     glScissor(0, 0, _Ygl->width, _Ygl->height);
     glEnable(GL_SCISSOR_TEST);
 
-    // glClearBufferfv(GL_COLOR, 0, colopaque);
-    // glClearBufferfi(GL_DEPTH_STENCIL, 0, 0, 0);
     if (((varVdp2Regs->TVMD & 0x8000) == 0) || (YglTM_vdp2 == NULL)) {
         finishCSRender();
         return;
@@ -339,13 +299,13 @@ void YglCSRender(Vdp2 *varVdp2Regs)
     glDisable(GL_BLEND);
     int id = 0;
 
-    lncl[0] = (varVdp2Regs->LNCLEN >> 0) & 0x1;    // NBG0
-    lncl[1] = (varVdp2Regs->LNCLEN >> 1) & 0x1;    // NBG1
-    lncl[2] = (varVdp2Regs->LNCLEN >> 2) & 0x1;    // NBG2
-    lncl[3] = (varVdp2Regs->LNCLEN >> 3) & 0x1;    // NBG3
-    lncl[4] = (varVdp2Regs->LNCLEN >> 4) & 0x1;    // RBG0
-    lncl[5] = (varVdp2Regs->LNCLEN >> 0) & 0x1;    // RBG1
-    lncl[6] = (varVdp2Regs->LNCLEN >> 5) & 0x1;    // SPRITE
+    lncl[0] = (varVdp2Regs->LNCLEN >> 0) & 0x1;
+    lncl[1] = (varVdp2Regs->LNCLEN >> 1) & 0x1;
+    lncl[2] = (varVdp2Regs->LNCLEN >> 2) & 0x1;
+    lncl[3] = (varVdp2Regs->LNCLEN >> 3) & 0x1;
+    lncl[4] = (varVdp2Regs->LNCLEN >> 4) & 0x1;
+    lncl[5] = (varVdp2Regs->LNCLEN >> 0) & 0x1;
+    lncl[6] = (varVdp2Regs->LNCLEN >> 5) & 0x1;
 
     for (int j = 0; j < 6; j++) {
         if (drawScreen[vdp2screens[j]] != 0) {
@@ -383,7 +343,6 @@ void YglCSRender(Vdp2 *varVdp2Regs)
     isPerline[7] = 7;
 
     for (int i = 6; i < 8; i++) {
-        // Update dedicated sprite window and Color calculation window
         winS_draw |= WinS[i] << i;
         winS_mode_draw |= WinS_mode[i] << i;
         win0_draw |= _Ygl->Win0[i] << i;
@@ -393,7 +352,7 @@ void YglCSRender(Vdp2 *varVdp2Regs)
         win_op_draw |= _Ygl->Win_op[i] << i;
     }
 
-    isShadow[6] = setupShadow(varVdp2Regs, SPRITE);    // Use sprite index for background suuport
+    isShadow[6] = setupShadow(varVdp2Regs, SPRITE);
 
     glViewport(0, 0, _Ygl->width, _Ygl->height);
     glGetIntegerv(GL_VIEWPORT, _Ygl->m_viewport);
@@ -402,7 +361,6 @@ void YglCSRender(Vdp2 *varVdp2Regs)
     modescreens[6] = setupBlend(varVdp2Regs, 6);
     glBindFramebuffer(GL_FRAMEBUFFER, _Ygl->back_fbo);
     glDrawBuffers(1, &DrawBuffers[0]);
-    // glClearBufferfv(GL_COLOR, 0, col);
     if ((Vdp2Regs->TVMD & 0x8100) == 0) {
         float black[4] = {0.0};
         glClearBufferfv(GL_COLOR, 0, black);
@@ -446,7 +404,6 @@ static u32 *getVdp1DrawingFBMem()
     }
     return manualfb;
 }
-
 
 void YglCSVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val)
 {

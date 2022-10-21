@@ -1,22 +1,3 @@
-/*  src/thr-linux.c: Thread functions for Linux
-    Copyright 2010 Andrew Church
-
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
 
 #include "core.h"
 #include "threads.h"
@@ -25,9 +6,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
-//#include <malloc.h>
 #include <stdlib.h>
-
 
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -35,17 +14,11 @@
 
 #include <semaphore.h>
 
-
-//////////////////////////////////////////////////////////////////////////////
-
-// Thread handles for each Yabause subthread
 static pthread_t thread_handle[YAB_NUM_THREADS] = {0};
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void dummy_sighandler(int signum_unused)
 {
-}    // For thread sleep/wake
+}
 
 static void thread_exit_handler(int signum_unused)
 {
@@ -54,8 +27,6 @@ static void thread_exit_handler(int signum_unused)
 
 int YabThreadStart(unsigned int id, void *(*func)(void *), void *arg)
 {
-    // Set up a dummy signal handler for SIGUSR1 so we can return from pause()
-    // in YabThreadSleep()
     struct sigaction sa;
     sa.sa_handler = dummy_sighandler;
     sigemptyset(&sa.sa_mask);
@@ -86,12 +57,10 @@ int YabThreadStart(unsigned int id, void *(*func)(void *), void *arg)
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void YabThreadWait(unsigned int id)
 {
     if (!thread_handle[id])
-        return;    // Thread wasn't running in the first place
+        return;
 
     pthread_join(thread_handle[id], NULL);
 
@@ -101,22 +70,14 @@ void YabThreadWait(unsigned int id)
 void YabThreadCancel(unsigned int id)
 {
     if (!thread_handle[id])
-        return;    // Thread wasn't running in the first place
+        return;
 
     pthread_kill(thread_handle[id], SIGUSR2);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void YabThreadYield(void)
 {
-    // Linux per default is SCHED_OTHER.
-    // As we are not forcing kronos to be SCHED_RR o SCHED_FIFO
-    // This call is meaningless.
-    // sched_yield();
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void YabThreadSleep(void)
 {
@@ -128,25 +89,17 @@ void YabThreadUSleep(unsigned int stime)
     usleep(stime);
 }
 
-
-//////////////////////////////////////////////////////////////////////////////
-
 void YabThreadRemoteSleep(unsigned int id)
 {
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void YabThreadWake(unsigned int id)
 {
     if (!thread_handle[id])
-        return;    // Thread isn't running
+        return;
 
     pthread_kill(thread_handle[id], SIGUSR1);
 }
-
-
-
 
 typedef struct YabEventQueue_pthread
 {
@@ -159,7 +112,6 @@ typedef struct YabEventQueue_pthread
     pthread_cond_t  cond_full;
     pthread_cond_t  cond_empty;
 } YabEventQueue_pthread;
-
 
 YabEventQueue *YabThreadCreateQueue(int qsize)
 {
@@ -190,8 +142,6 @@ void YabThreadDestoryQueue(YabEventQueue *queue_t)
     pthread_mutex_unlock(&mutex);
 }
 
-
-
 void YabAddEventQueue(YabEventQueue *queue_t, void *evcode)
 {
     YabEventQueue_pthread *queue = (YabEventQueue_pthread *)queue_t;
@@ -214,7 +164,6 @@ void YabWaitEmptyQueue(YabEventQueue *queue_t)
         pthread_cond_wait(&(queue->cond_full), &(queue->mutex));
     pthread_mutex_unlock(&(queue->mutex));
 }
-
 
 void *YabWaitEventQueue(YabEventQueue *queue_t)
 {
@@ -314,8 +263,6 @@ void YabThreadFreeMutex(YabMutex *mtx)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 typedef struct YabBarrier_pthread
 {
     pthread_barrier_t barrier;
@@ -336,8 +283,6 @@ YabBarrier *YabThreadCreateBarrier(int nbWorkers)
     pthread_barrier_init(&mtx->barrier, NULL, nbWorkers);
     return (YabBarrier *)mtx;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 typedef struct YabCond_pthread
 {
@@ -399,7 +344,7 @@ extern int setns(int, int);
 #define CPU_SETSIZE 32
 #endif
 
-#define __CPU_BITTYPE unsigned long int /* mandated by the kernel  */
+#define __CPU_BITTYPE unsigned long int
 #define __CPU_BITS    (8 * sizeof(__CPU_BITTYPE))
 #define __CPU_ELT(x)  ((x) / __CPU_BITS)
 #define __CPU_MASK(x) ((__CPU_BITTYPE)1 << ((x) & (__CPU_BITS - 1)))
@@ -425,8 +370,6 @@ extern int sched_getaffinity(pid_t pid, size_t setsize, cpu_set_t *set);
 #define CPU_XOR(dst, set1, set2) __CPU_OP(dst, set1, set2, ^)
 
 #define __CPU_OP(dst, set1, set2, op) __CPU_OP_S(sizeof(cpu_set_t), dst, set1, set2, op)
-
-/* Support for dynamically-allocated cpu_set_t */
 
 #define CPU_ALLOC_SIZE(count) __CPU_ELT((count) + (__CPU_BITS - 1)) * sizeof(__CPU_BITTYPE)
 
@@ -486,8 +429,8 @@ void YabThreadSetCurrentThreadAffinityMask(int mask)
     int err, syscallres;
     pid_t pid = gettid();
 
-	cpu_set_t my_set;        /* Define your cpu_set bit mask. */
-	CPU_ZERO(&my_set);       /* Initialize it all to 0, i.e. no CPUs selected. */
+	cpu_set_t my_set;
+	CPU_ZERO(&my_set);
 	CPU_SET(mask, &my_set);
 	CPU_SET(mask+4, &my_set);
 	sched_setaffinity(pid,sizeof(my_set), &my_set);
@@ -496,7 +439,6 @@ void YabThreadSetCurrentThreadAffinityMask(int mask)
 
 #include <sys/syscall.h>
 #ifndef ARCH_IS_MACOSX
-//...
 int getCpuId()
 {
 
@@ -511,10 +453,5 @@ int getCpuId()
 
 int YabThreadGetCurrentThreadAffinityMask()
 {
-    // return sched_getcpu(); //my_set.__bits;
     return 0;
 }
-
-
-
-//////////////////////////////////////////////////////////////////////////////

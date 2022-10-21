@@ -1,22 +1,3 @@
-/*  Copyright 2005-2006 Guillaume Duhamel
-    Copyright 2005 Theo Berkau
-
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
 
 #ifndef DEBUG_H
 #define DEBUG_H
@@ -25,42 +6,49 @@
 #include <stdio.h>
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
-  typedef enum { DEBUG_STRING, DEBUG_STREAM, DEBUG_STDOUT, DEBUG_STDERR, DEBUG_CALLBACK } DebugOutType;
+typedef enum
+{
+    DEBUG_STRING,
+    DEBUG_STREAM,
+    DEBUG_STDOUT,
+    DEBUG_STDERR,
+    DEBUG_CALLBACK
+} DebugOutType;
 
-  typedef struct {
+typedef struct
+{
     DebugOutType output_type;
-    union {
-      FILE * stream;
-      char * string;
-      void(*callback) (char*);
+    union
+    {
+        FILE *stream;
+        char *string;
+        void (*callback)(char *);
     } output;
-    char * name;
-  } Debug;
+    char *name;
+} Debug;
 
-  Debug * DebugInit(const char *, DebugOutType, char *);
-  void DebugDeInit(Debug *);
+Debug *DebugInit(const char *, DebugOutType, char *);
+void   DebugDeInit(Debug *);
 
-  void DebugChangeOutput(Debug *, DebugOutType, char *);
+void DebugChangeOutput(Debug *, DebugOutType, char *);
 
-  void DebugPrintf(Debug *, const char *, u32, const char *, ...);
+void DebugPrintf(Debug *, const char *, u32, const char *, ...);
 
-  extern Debug * MainLog;
+extern Debug *MainLog;
 
-  void LogStart(void);
-  void LogStop(void);
-  void LogChangeOutput(DebugOutType t, char * s);
+void LogStart(void);
+void LogStop(void);
+void LogChangeOutput(DebugOutType t, char *s);
 
-//#define DEBUG 1
 #ifdef DEBUG
 #define LOG(...) DebugPrintf(MainLog, __FILE__, __LINE__, __VA_ARGS__)
 #else
 #define LOG(...)
 #endif
 
-  //#define CDDEBUG 1
 #ifdef CDDEBUG
 #define CDLOG(...) DebugPrintf(MainLog, __FILE__, __LINE__, __VA_ARGS__)
 #else
@@ -73,7 +61,6 @@ extern "C"{
 #define NETLINK_LOG(...)
 #endif
 
-  //#define SCSP_DEBUG 1
 #ifdef SCSP_DEBUG
 #define SCSPLOG(...) DebugPrintf(MainLog, __FILE__, __LINE__, __VA_ARGS__)
 #else
@@ -92,7 +79,6 @@ extern "C"{
 #define VDP1LOG(...)
 #endif
 
-  //#define VDP2_DEBUG 1
 #ifdef VDP2_DEBUG
 #define VDP2LOG(...) DebugPrintf(MainLog, __FILE__, __LINE__, __VA_ARGS__)
 #else
@@ -111,7 +97,6 @@ extern "C"{
 #define YGLLOG(...)
 #endif
 
-
 #ifdef FRAME_DEBUG
 #define FRAMELOG(...) DebugPrintf(MainLog, __FILE__, __LINE__, __VA_ARGS__)
 #else
@@ -121,6 +106,5 @@ extern "C"{
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif

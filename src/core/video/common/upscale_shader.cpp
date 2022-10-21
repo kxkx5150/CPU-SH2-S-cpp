@@ -54,10 +54,8 @@ static void Ygl_printProgError(GLuint prog)
             free(infoLog);
         }
     }
-    // The program is useless now. So delete it.
     glDeleteProgram(prog);
 }
-
 
 static int upscale_vbo = 0;
 
@@ -164,7 +162,6 @@ int YglUpscaleFramebuffer(u32 srcTexture, u32 targetFbo, float w, float h, float
         glUseProgram(up_prg);
     }
 
-
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
@@ -189,8 +186,6 @@ int YglUpscaleFramebuffer(u32 srcTexture, u32 targetFbo, float w, float h, float
     }
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-
-    // Clean up
     glActiveTexture(GL_TEXTURE0);
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);

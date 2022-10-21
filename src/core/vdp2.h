@@ -1,29 +1,8 @@
-/*  Copyright 2003-2005 Guillaume Duhamel
-    Copyright 2004-2006 Theo Berkau
-
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
 
 #ifndef VDP2_H
 #define VDP2_H
 
 #include "memory.h"
-/* This include is not *needed*, it's here to avoid breaking ports */
-// #include "osdcore.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,73 +33,73 @@ void FASTCALL Vdp2ColorRamWriteLong(SH2_struct *context, u8 *, u32, u32);
 
 typedef struct
 {
-    u16 TVMD;      // 0x25F80000
-    u16 EXTEN;     // 0x25F80002
-    u16 TVSTAT;    // 0x25F80004
-    u16 VRSIZE;    // 0x25F80006
-    u16 HCNT;      // 0x25F80008
-    u16 VCNT;      // 0x25F8000A
-    u16 RAMCTL;    // 0x25F8000E
-    u16 CYCA0L;    // 0x25F80010
-    u16 CYCA0U;    // 0x25F80012
-    u16 CYCA1L;    // 0x25F80014
-    u16 CYCA1U;    // 0x25F80016
-    u16 CYCB0L;    // 0x25F80018
-    u16 CYCB0U;    // 0x25F8001A
-    u16 CYCB1L;    // 0x25F8001C
-    u16 CYCB1U;    // 0x25F8001E
-    u16 BGON;      // 0x25F80020
-    u16 MZCTL;     // 0x25F80022
-    u16 SFSEL;     // 0x25F80024
-    u16 SFCODE;    // 0x25F80026
-    u16 CHCTLA;    // 0x25F80028
-    u16 CHCTLB;    // 0x25F8002A
-    u16 BMPNA;     // 0x25F8002C
-    u16 BMPNB;     // 0x25F8002E
-    u16 PNCN0;     // 0x25F80030
-    u16 PNCN1;     // 0x25F80032
-    u16 PNCN2;     // 0x25F80034
-    u16 PNCN3;     // 0x25F80036
-    u16 PNCR;      // 0x25F80038
-    u16 PLSZ;      // 0x25F8003A
-    u16 MPOFN;     // 0x25F8003C
-    u16 MPOFR;     // 0x25F8003E
-    u16 MPABN0;    // 0x25F80040
-    u16 MPCDN0;    // 0x25F80042
-    u16 MPABN1;    // 0x25F80044
-    u16 MPCDN1;    // 0x25F80046
-    u16 MPABN2;    // 0x25F80048
-    u16 MPCDN2;    // 0x25F8004A
-    u16 MPABN3;    // 0x25F8004C
-    u16 MPCDN3;    // 0x25F8004E
-    u16 MPABRA;    // 0x25F80050
-    u16 MPCDRA;    // 0x25F80052
-    u16 MPEFRA;    // 0x25F80054
-    u16 MPGHRA;    // 0x25F80056
-    u16 MPIJRA;    // 0x25F80058
-    u16 MPKLRA;    // 0x25F8005A
-    u16 MPMNRA;    // 0x25F8005C
-    u16 MPOPRA;    // 0x25F8005E
-    u16 MPABRB;    // 0x25F80060
-    u16 MPCDRB;    // 0x25F80062
-    u16 MPEFRB;    // 0x25F80064
-    u16 MPGHRB;    // 0x25F80066
-    u16 MPIJRB;    // 0x25F80068
-    u16 MPKLRB;    // 0x25F8006A
-    u16 MPMNRB;    // 0x25F8006C
-    u16 MPOPRB;    // 0x25F8006E
-    u16 SCXIN0;    // 0x25F80070
-    u16 SCXDN0;    // 0x25F80072
-    u16 SCYIN0;    // 0x25F80074
-    u16 SCYDN0;    // 0x25F80076
+    u16 TVMD;
+    u16 EXTEN;
+    u16 TVSTAT;
+    u16 VRSIZE;
+    u16 HCNT;
+    u16 VCNT;
+    u16 RAMCTL;
+    u16 CYCA0L;
+    u16 CYCA0U;
+    u16 CYCA1L;
+    u16 CYCA1U;
+    u16 CYCB0L;
+    u16 CYCB0U;
+    u16 CYCB1L;
+    u16 CYCB1U;
+    u16 BGON;
+    u16 MZCTL;
+    u16 SFSEL;
+    u16 SFCODE;
+    u16 CHCTLA;
+    u16 CHCTLB;
+    u16 BMPNA;
+    u16 BMPNB;
+    u16 PNCN0;
+    u16 PNCN1;
+    u16 PNCN2;
+    u16 PNCN3;
+    u16 PNCR;
+    u16 PLSZ;
+    u16 MPOFN;
+    u16 MPOFR;
+    u16 MPABN0;
+    u16 MPCDN0;
+    u16 MPABN1;
+    u16 MPCDN1;
+    u16 MPABN2;
+    u16 MPCDN2;
+    u16 MPABN3;
+    u16 MPCDN3;
+    u16 MPABRA;
+    u16 MPCDRA;
+    u16 MPEFRA;
+    u16 MPGHRA;
+    u16 MPIJRA;
+    u16 MPKLRA;
+    u16 MPMNRA;
+    u16 MPOPRA;
+    u16 MPABRB;
+    u16 MPCDRB;
+    u16 MPEFRB;
+    u16 MPGHRB;
+    u16 MPIJRB;
+    u16 MPKLRB;
+    u16 MPMNRB;
+    u16 MPOPRB;
+    u16 SCXIN0;
+    u16 SCXDN0;
+    u16 SCYIN0;
+    u16 SCYDN0;
 
 #ifdef WORDS_BIGENDIAN
     union
     {
         struct
         {
-            u32 I : 16;    // 0x25F80078
-            u32 D : 16;    // 0x25F8007A
+            u32 I : 16;
+            u32 D : 16;
         } part;
         u32 all;
     } ZMXN0;
@@ -129,8 +108,8 @@ typedef struct
     {
         struct
         {
-            u32 I : 16;    // 0x25F8007C
-            u32 D : 16;    // 0x25F8007E
+            u32 I : 16;
+            u32 D : 16;
         } part;
         u32 all;
     } ZMYN0;
@@ -139,8 +118,8 @@ typedef struct
     {
         struct
         {
-            u32 D : 16;    // 0x25F8007A
-            u32 I : 16;    // 0x25F80078
+            u32 D : 16;
+            u32 I : 16;
         } part;
         u32 all;
     } ZMXN0;
@@ -149,25 +128,25 @@ typedef struct
     {
         struct
         {
-            u32 D : 16;    // 0x25F8007E
-            u32 I : 16;    // 0x25F8007C
+            u32 D : 16;
+            u32 I : 16;
         } part;
         u32 all;
     } ZMYN0;
 #endif
 
-    u16 SCXIN1;    // 0x25F80080
-    u16 SCXDN1;    // 0x25F80082
-    u16 SCYIN1;    // 0x25F80084
-    u16 SCYDN1;    // 0x25F80086
+    u16 SCXIN1;
+    u16 SCXDN1;
+    u16 SCYIN1;
+    u16 SCYDN1;
 
 #ifdef WORDS_BIGENDIAN
     union
     {
         struct
         {
-            u32 I : 16;    // 0x25F80088
-            u32 D : 16;    // 0x25F8008A
+            u32 I : 16;
+            u32 D : 16;
         } part;
         u32 all;
     } ZMXN1;
@@ -176,8 +155,8 @@ typedef struct
     {
         struct
         {
-            u32 I : 16;    // 0x25F8008C
-            u32 D : 16;    // 0x25F8008E
+            u32 I : 16;
+            u32 D : 16;
         } part;
         u32 all;
     } ZMYN1;
@@ -186,8 +165,8 @@ typedef struct
     {
         struct
         {
-            u32 D : 16;    // 0x25F8008A
-            u32 I : 16;    // 0x25F80088
+            u32 D : 16;
+            u32 I : 16;
         } part;
         u32 all;
     } ZMXN1;
@@ -196,26 +175,26 @@ typedef struct
     {
         struct
         {
-            u32 D : 16;    // 0x25F8008E
-            u32 I : 16;    // 0x25F8008C
+            u32 D : 16;
+            u32 I : 16;
         } part;
         u32 all;
     } ZMYN1;
 #endif
 
-    u16 SCXN2;     // 0x25F80090
-    u16 SCYN2;     // 0x25F80092
-    u16 SCXN3;     // 0x25F80094
-    u16 SCYN3;     // 0x25F80096
-    u16 ZMCTL;     // 0x25F80098
-    u16 SCRCTL;    // 0x25F8009A
+    u16 SCXN2;
+    u16 SCYN2;
+    u16 SCXN3;
+    u16 SCYN3;
+    u16 ZMCTL;
+    u16 SCRCTL;
 #ifdef WORDS_BIGENDIAN
     union
     {
         struct
         {
-            u32 U : 16;    // 0x25F8009C
-            u32 L : 16;    // 0x25F8009E
+            u32 U : 16;
+            u32 L : 16;
         } part;
         u32 all;
     } VCSTA;
@@ -224,8 +203,8 @@ typedef struct
     {
         struct
         {
-            u32 U : 16;    // 0x25F800A0
-            u32 L : 16;    // 0x25F800A2
+            u32 U : 16;
+            u32 L : 16;
         } part;
         u32 all;
     } LSTA0;
@@ -234,8 +213,8 @@ typedef struct
     {
         struct
         {
-            u32 U : 16;    // 0x25F800A4
-            u32 L : 16;    // 0x25F800A6
+            u32 U : 16;
+            u32 L : 16;
         } part;
         u32 all;
     } LSTA1;
@@ -244,8 +223,8 @@ typedef struct
     {
         struct
         {
-            u32 U : 16;    // 0x25F800A8
-            u32 L : 16;    // 0x25F800AA
+            u32 U : 16;
+            u32 L : 16;
         } part;
         u32 all;
     } LCTA;
@@ -254,8 +233,8 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0x25F8009E
-            u32 U : 16;    // 0x25F8009C
+            u32 L : 16;
+            u32 U : 16;
         } part;
         u32 all;
     } VCSTA;
@@ -264,8 +243,8 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0x25F800A2
-            u32 U : 16;    // 0x25F800A0
+            u32 L : 16;
+            u32 U : 16;
         } part;
         u32 all;
     } LSTA0;
@@ -274,8 +253,8 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0x25F800A6
-            u32 U : 16;    // 0x25F800A4
+            u32 L : 16;
+            u32 U : 16;
         } part;
         u32 all;
     } LSTA1;
@@ -284,28 +263,28 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0x25F800AA
-            u32 U : 16;    // 0x25F800A8
+            u32 L : 16;
+            u32 U : 16;
         } part;
         u32 all;
     } LCTA;
 #endif
 
-    u16 BKTAU;     // 0x25F800AC
-    u16 BKTAL;     // 0x25F800AE
-    u16 RPMD;      // 0x25F800B0
-    u16 RPRCTL;    // 0x25F800B2
-    u16 KTCTL;     // 0x25F800B4
-    u16 KTAOF;     // 0x25F800B6
-    u16 OVPNRA;    // 0x25F800B8
-    u16 OVPNRB;    // 0x25F800BA
+    u16 BKTAU;
+    u16 BKTAL;
+    u16 RPMD;
+    u16 RPRCTL;
+    u16 KTCTL;
+    u16 KTAOF;
+    u16 OVPNRA;
+    u16 OVPNRB;
 #ifdef WORDS_BIGENDIAN
     union
     {
         struct
         {
-            u32 U : 16;    // 0x25F800BC
-            u32 L : 16;    // 0x25F800BE
+            u32 U : 16;
+            u32 L : 16;
         } part;
         u32 all;
     } RPTA;
@@ -314,31 +293,31 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0x25F800BE
-            u32 U : 16;    // 0x25F800BC
+            u32 L : 16;
+            u32 U : 16;
         } part;
         u32 all;
     } RPTA;
 #endif
-    u16 WPSX0;    // 0x25F800C0
-    u16 WPSY0;    // 0x25F800C2
-    u16 WPEX0;    // 0x25F800C4
-    u16 WPEY0;    // 0x25F800C6
-    u16 WPSX1;    // 0x25F800C8
-    u16 WPSY1;    // 0x25F800CA
-    u16 WPEX1;    // 0x25F800CC
-    u16 WPEY1;    // 0x25F800CE
-    u16 WCTLA;    // 0x25F800D0
-    u16 WCTLB;    // 0x25F800D2
-    u16 WCTLC;    // 0x25F800D4
-    u16 WCTLD;    // 0x25F800D6
+    u16 WPSX0;
+    u16 WPSY0;
+    u16 WPEX0;
+    u16 WPEY0;
+    u16 WPSX1;
+    u16 WPSY1;
+    u16 WPEX1;
+    u16 WPEY1;
+    u16 WCTLA;
+    u16 WCTLB;
+    u16 WCTLC;
+    u16 WCTLD;
 #ifdef WORDS_BIGENDIAN
     union
     {
         struct
         {
-            u32 U : 16;    // 0x25F800D8
-            u32 L : 16;    // 0x25F800DA
+            u32 U : 16;
+            u32 L : 16;
         } part;
         u32 all;
     } LWTA0;
@@ -347,8 +326,8 @@ typedef struct
     {
         struct
         {
-            u32 U : 16;    // 0x25F800DC
-            u32 L : 16;    // 0x25F800DE
+            u32 U : 16;
+            u32 L : 16;
         } part;
         u32 all;
     } LWTA1;
@@ -357,8 +336,8 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0x25F800D8
-            u32 U : 16;    // 0x25F800DA
+            u32 L : 16;
+            u32 U : 16;
         } part;
         u32 all;
     } LWTA0;
@@ -367,45 +346,44 @@ typedef struct
     {
         struct
         {
-            u32 L : 16;    // 0x25F800DC
-            u32 U : 16;    // 0x25F800DE
+            u32 L : 16;
+            u32 U : 16;
         } part;
         u32 all;
     } LWTA1;
 #endif
 
-
-    u16 SPCTL;     // 0x25F800E0
-    u16 SDCTL;     // 0x25F800E2
-    u16 CRAOFA;    // 0x25F800E4
-    u16 CRAOFB;    // 0x25F800E6
-    u16 LNCLEN;    // 0x25F800E8
-    u16 SFPRMD;    // 0x25F800EA
-    u16 CCCTL;     // 0x25F800EC
-    u16 SFCCMD;    // 0x25F800EE
-    u16 PRISA;     // 0x25F800F0
-    u16 PRISB;     // 0x25F800F2
-    u16 PRISC;     // 0x25F800F4
-    u16 PRISD;     // 0x25F800F6
-    u16 PRINA;     // 0x25F800F8
-    u16 PRINB;     // 0x25F800FA
-    u16 PRIR;      // 0x25F800FC
-    u16 CCRSA;     // 0x25F80100
-    u16 CCRSB;     // 0x25F80102
-    u16 CCRSC;     // 0x25F80104
-    u16 CCRSD;     // 0x25F80106
-    u16 CCRNA;     // 0x25F80108
-    u16 CCRNB;     // 0x25F8010A
-    u16 CCRR;      // 0x25F8010C
-    u16 CCRLB;     // 0x25F8010E
-    u16 CLOFEN;    // 0x25F80110
-    u16 CLOFSL;    // 0x25F80112
-    u16 COAR;      // 0x25F80114
-    u16 COAG;      // 0x25F80116
-    u16 COAB;      // 0x25F80118
-    u16 COBR;      // 0x25F8011A
-    u16 COBG;      // 0x25F8011C
-    u16 COBB;      // 0x25F8011E
+    u16 SPCTL;
+    u16 SDCTL;
+    u16 CRAOFA;
+    u16 CRAOFB;
+    u16 LNCLEN;
+    u16 SFPRMD;
+    u16 CCCTL;
+    u16 SFCCMD;
+    u16 PRISA;
+    u16 PRISB;
+    u16 PRISC;
+    u16 PRISD;
+    u16 PRINA;
+    u16 PRINB;
+    u16 PRIR;
+    u16 CCRSA;
+    u16 CCRSB;
+    u16 CCRSC;
+    u16 CCRSD;
+    u16 CCRNA;
+    u16 CCRNB;
+    u16 CCRR;
+    u16 CCRLB;
+    u16 CLOFEN;
+    u16 CLOFSL;
+    u16 COAR;
+    u16 COAG;
+    u16 COAB;
+    u16 COBR;
+    u16 COBG;
+    u16 COBB;
 } Vdp2;
 
 extern Vdp2 *Vdp2Regs;
@@ -421,12 +399,11 @@ extern Vdp2                Vdp2Lines[270];
 
 struct CellScrollData
 {
-    u32 data[88];    //(352/8) * 2 screens
+    u32 data[88];
 };
 
 extern struct CellScrollData cell_scroll_data[270];
 
-// struct for Vdp2 part that shouldn't be saved
 typedef struct
 {
     int disptoggle;

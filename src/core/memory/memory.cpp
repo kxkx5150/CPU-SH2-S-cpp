@@ -56,7 +56,6 @@
 #include "ygl.h"
 #endif
 
-
 #include "vidogl.h"
 
 //////////////////////////////////////////////////////////////////////////////
@@ -191,14 +190,12 @@ void YabFreeMap(void *p)
     munmap(p, mmapsize);
 }
 
-
 #else
 void *YabMemMap(char *filename)
 {
     return NULL;
 }
 #endif
-
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -678,7 +675,6 @@ u8 FASTCALL SH2MappedMemoryReadByte(SH2_struct *context, u32 addr)
     return 0;
 }
 
-
 u16 FASTCALL DMAMappedMemoryReadWord(u32 addr)
 {
     return MappedMemoryReadWord(NULL, addr);
@@ -717,7 +713,6 @@ u16 FASTCALL MappedMemoryReadWord(SH2_struct *context, u32 addr)
 
     return 0;
 }
-
 
 u16 FASTCALL SH2MappedMemoryReadWord(SH2_struct *context, u32 addr)
 {
@@ -1275,7 +1270,6 @@ void BackupDeinit()
     BupRam = NULL;
 }
 
-
 //////////////////////////////////////////////////////////////////////////////
 
 int LoadBios(const char *filename)
@@ -1332,7 +1326,6 @@ int ExtendBackupFile(FILE *fp, u32 size)
 
     return 0;
 }
-
 
 //////////////////////////////////////////////////////////////////////////////
 void FormatBackupRamFile(FILE *fp, u32 size)

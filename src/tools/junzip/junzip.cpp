@@ -1,4 +1,3 @@
-// JUnzip library by Joonas Pihlajamaa. See junzip.h for license and details.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,9 +7,8 @@
 
 #include "junzip.h"
 
-unsigned char jzBuffer[JZ_BUFFER_SIZE];    // limits maximum zip descriptor size
+unsigned char jzBuffer[JZ_BUFFER_SIZE];
 
-// Read ZIP file end record. Will move within file.
 int jzReadEndRecord(JZFile *zip, JZEndRecord *endRecord)
 {
     long         fileSize, readBytes, i;
@@ -38,7 +36,6 @@ int jzReadEndRecord(JZFile *zip, JZEndRecord *endRecord)
         return Z_ERRNO;
     }
 
-    // Naively assume signature can only be found in one place...
     for (i = readBytes - sizeof(JZEndRecord); i >= 0; i--) {
         er = (JZEndRecord *)(jzBuffer + i);
         if (er->signature == 0x06054B50)
@@ -61,7 +58,6 @@ int jzReadEndRecord(JZFile *zip, JZEndRecord *endRecord)
     return Z_OK;
 }
 
-// Read ZIP file global directory. Will move within file.
 int jzReadCentralDirectory(JZFile *zip, JZEndRecord *endRecord, JZRecordCallback callback, void *user_data)
 {
     JZGlobalFileHeader fileHeader;
@@ -94,7 +90,7 @@ int jzReadCentralDirectory(JZFile *zip, JZEndRecord *endRecord, JZRecordCallback
             return Z_ERRNO;
         }
 
-        jzBuffer[fileHeader.fileNameLength] = '\0';    // NULL terminate
+        jzBuffer[fileHeader.fileNameLength] = '\0';
 
         if (zip->seek(zip, fileHeader.extraFieldLength, SEEK_CUR) ||
             zip->seek(zip, fileHeader.fileCommentLength, SEEK_CUR)) {
@@ -102,18 +98,16 @@ int jzReadCentralDirectory(JZFile *zip, JZEndRecord *endRecord, JZRecordCallback
             return Z_ERRNO;
         }
 
-        // Construct JZFileHeader from global file header
         memcpy(&header, &fileHeader.compressionMethod, sizeof(header));
         header.offset = fileHeader.relativeOffsetOflocalHeader;
 
         if (!callback(zip, i, &header, (char *)jzBuffer, user_data))
-            break;    // end if callback returns zero
+            break;
     }
 
     return Z_OK;
 }
 
-// Read local ZIP file header. Silent on errors so optimistic reading possible.
 int jzReadLocalFileHeader(JZFile *zip, JZFileHeader *header, char *filename, int len)
 {
     JZLocalFileHeader localHeader;
@@ -124,15 +118,15 @@ int jzReadLocalFileHeader(JZFile *zip, JZFileHeader *header, char *filename, int
     if (localHeader.signature != 0x04034B50)
         return Z_ERRNO;
 
-    if (len) {    // read filename
+    if (len) {
         if (localHeader.fileNameLength >= len)
-            return Z_ERRNO;    // filename cannot fit
+            return Z_ERRNO;
 
         if (zip->read(zip, filename, localHeader.fileNameLength) < localHeader.fileNameLength)
-            return Z_ERRNO;    // read fail
+            return Z_ERRNO;
 
-        filename[localHeader.fileNameLength] = '\0';    // NULL terminate
-    } else {                                            // skip filename
+        filename[localHeader.fileNameLength] = '\0';
+    } else {
         if (zip->seek(zip, localHeader.fileNameLength, SEEK_CUR))
             return Z_ERRNO;
     }
@@ -142,31 +136,26 @@ int jzReadLocalFileHeader(JZFile *zip, JZFileHeader *header, char *filename, int
             return Z_ERRNO;
     }
 
-    // For now, silently ignore bit flags and hope ZLIB can uncompress
-    // if(localHeader.generalPurposeBitFlag)
-    //     return Z_ERRNO; // Flags not supported
-
     if (localHeader.compressionMethod == 0 && (localHeader.compressedSize != localHeader.uncompressedSize))
-        return Z_ERRNO;    // Method is "store" but sizes indicate otherwise, abort
+        return Z_ERRNO;
 
     memcpy(header, &localHeader.compressionMethod, sizeof(JZFileHeader));
-    header->offset = 0;    // not used in local context
+    header->offset = 0;
 
     return Z_OK;
 }
 
-// Read data from file stream, described by header, to preallocated buffer
 int jzReadData(JZFile *zip, JZFileHeader *header, void *buffer)
 {
-    unsigned char *bytes = (unsigned char *)buffer;    // cast
+    unsigned char *bytes = (unsigned char *)buffer;
     long           compressedLeft, uncompressedLeft;
     z_stream       strm;
     int            ret;
 
-    if (header->compressionMethod == 0) {    // Store - just read it
+    if (header->compressionMethod == 0) {
         if (zip->read(zip, buffer, header->uncompressedSize) < header->uncompressedSize || zip->error(zip))
             return Z_ERRNO;
-    } else if (header->compressionMethod == 8) {    // Deflate - using zlib
+    } else if (header->compressionMethod == 8) {
         strm.zalloc = Z_NULL;
         strm.zfree  = Z_NULL;
         strm.opaque = Z_NULL;
@@ -174,14 +163,11 @@ int jzReadData(JZFile *zip, JZFileHeader *header, void *buffer)
         strm.avail_in = 0;
         strm.next_in  = Z_NULL;
 
-        // Use inflateInit2 with negative window bits to indicate raw data
         if ((ret = inflateInit2(&strm, -MAX_WBITS)) != Z_OK)
-            return ret;    // Zlib errors are negative
+            return ret;
 
-        // Inflate compressed data
         for (compressedLeft = header->compressedSize, uncompressedLeft = header->uncompressedSize;
              compressedLeft && uncompressedLeft && ret != Z_STREAM_END; compressedLeft -= strm.avail_in) {
-            // Read next chunk
             strm.avail_in =
                 zip->read(zip, jzBuffer, (sizeof(jzBuffer) < compressedLeft) ? sizeof(jzBuffer) : compressedLeft);
 
@@ -194,23 +180,23 @@ int jzReadData(JZFile *zip, JZFileHeader *header, void *buffer)
             strm.avail_out = uncompressedLeft;
             strm.next_out  = bytes;
 
-            compressedLeft -= strm.avail_in;    // inflate will change avail_in
+            compressedLeft -= strm.avail_in;
 
             ret = inflate(&strm, Z_NO_FLUSH);
 
             if (ret == Z_STREAM_ERROR)
-                return ret;    // shouldn't happen
+                return ret;
 
             switch (ret) {
                 case Z_NEED_DICT:
-                    ret = Z_DATA_ERROR; /* and fall through */
+                    ret = Z_DATA_ERROR;
                 case Z_DATA_ERROR:
                 case Z_MEM_ERROR:
                     (void)inflateEnd(&strm);
                     return ret;
             }
 
-            bytes += uncompressedLeft - strm.avail_out;    // bytes uncompressed
+            bytes += uncompressedLeft - strm.avail_out;
             uncompressedLeft = strm.avail_out;
         }
 
@@ -221,7 +207,6 @@ int jzReadData(JZFile *zip, JZFileHeader *header, void *buffer)
 
     return Z_OK;
 }
-
 
 typedef struct
 {

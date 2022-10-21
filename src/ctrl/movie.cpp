@@ -1,30 +1,10 @@
-/*
-    This file is part of Yabause.
 
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
-
-/*! \file movie.c
-    \brief Movie recording functions.
-*/
 
 #include "peripheral.h"
 #include "scsp.h"
 #include "movie.h"
 #include "cs2.h"
-#include "vdp2.h"    // for DisplayMessage() prototype
+#include "vdp2.h"
 #include "yabause.h"
 #include "error.h"
 
@@ -34,17 +14,14 @@ int PlaybackFileOpened;
 struct MovieStruct Movie;
 
 char MovieStatus[40];
-int  movieLoaded = 0;    // Boolean value, 1 if a movie is playing or recording
+int  movieLoaded = 0;
 
-// Counting
 int framecounter;
 int lagframecounter;
 int LagFrameFlag;
 int FrameAdvanceVariable = 0;
 
 int headersize = 512;
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void ReadHeader(FILE *fp)
 {
@@ -57,8 +34,6 @@ static void ReadHeader(FILE *fp)
 
     fseek(fp, headersize, SEEK_SET);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static void WriteHeader(FILE *fp)
 {
@@ -79,15 +54,9 @@ static void WriteHeader(FILE *fp)
     fseek(fp, headersize, SEEK_SET);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void ClearInput(void)
 {
-
-    // do something....
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 const char *Buttons[8]  = {"B", "C", "A", "S", "U", "D", "R", "L"};
 const char *Spaces[8]   = {" ", " ", " ", " ", " ", " ", " ", " "};
@@ -137,8 +106,6 @@ static void SetInputDisplayCharacters(void)
     strcpy(InputDisplayString, str);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 static void IncrementLagAndFrameCounter(void)
 {
     if (LagFrameFlag == 1)
@@ -146,8 +113,6 @@ static void IncrementLagAndFrameCounter(void)
 
     framecounter++;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 int framelength = 16;
 
@@ -164,7 +129,6 @@ void DoMovie(void)
     LagFrameFlag = 1;
     SetInputDisplayCharacters();
 
-    // Read/Write Controller Data
     if (Movie.Status == Recording) {
         for (x = 0; x < 8; x++) {
             fwrite(&PORTDATA1.data[x], 1, 1, Movie.fp);
@@ -182,7 +146,6 @@ void DoMovie(void)
             num_read = fread(&PORTDATA2.data[x], 1, 1, Movie.fp);
         }
 
-        // if we get to the end of the movie
         if (((ftell(Movie.fp) - headersize) / framelength) >= Movie.Frames) {
             fclose(Movie.fp);
             PlaybackFileOpened = 0;
@@ -190,29 +153,23 @@ void DoMovie(void)
             ClearInput();
             strcpy(MovieStatus, "Playback Stopped");
         }
-    } else
-        // Stop Recording/Playback
-        if (Movie.Status != Recording && RecordingFileOpened) {
-            fclose(Movie.fp);
-            RecordingFileOpened = 0;
-            Movie.Status        = Stopped;
-            strcpy(MovieStatus, "Recording Stopped");
-        } else if (Movie.Status != Playback && PlaybackFileOpened && Movie.ReadOnly != 0) {
-            fclose(Movie.fp);
-            PlaybackFileOpened = 0;
-            Movie.Status       = Stopped;
-            strcpy(MovieStatus, "Playback Stopped");
-        }
+    } else if (Movie.Status != Recording && RecordingFileOpened) {
+        fclose(Movie.fp);
+        RecordingFileOpened = 0;
+        Movie.Status        = Stopped;
+        strcpy(MovieStatus, "Recording Stopped");
+    } else if (Movie.Status != Playback && PlaybackFileOpened && Movie.ReadOnly != 0) {
+        fclose(Movie.fp);
+        PlaybackFileOpened = 0;
+        Movie.Status       = Stopped;
+        strcpy(MovieStatus, "Playback Stopped");
+    }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void MovieLoadState(void)
 {
 
-
     if (Movie.ReadOnly == 1 && Movie.Status == Playback) {
-        // Movie.Status = Playback;
         fseek(Movie.fp, headersize + (framecounter * framelength), SEEK_SET);
     }
 
@@ -231,37 +188,16 @@ void MovieLoadState(void)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void TruncateMovie(struct MovieStruct Movie)
 {
-
-    // when we resume recording, shorten the movie so that there isn't
-    // potential garbage data at the end
-
-    /*//TODO
-            struct MovieBufferStruct tempbuffer;
-            fseek(Movie.fp,0,SEEK_SET);
-            tempbuffer=ReadMovieIntoABuffer(Movie.fp);
-            fclose(Movie.fp);
-
-            //clear the file and write it again
-            Movie.fp=fopen(Movie.filename,"wb");
-            fwrite(tempbuffer.data,framelength,framecounter,Movie.fp);
-            fclose(Movie.fp);
-
-            Movie.fp=fopen(Movie.filename,"r+b");
-    */
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 static int MovieGetSize(FILE *fp)
 {
     int size;
     int fpos;
 
-    fpos = ftell(fp);    // save current pos
+    fpos = ftell(fp);
 
     if (fpos < 0) {
         YabSetError(YAB_ERR_OTHER, "MovieGetSize fpos is negative");
@@ -273,11 +209,9 @@ static int MovieGetSize(FILE *fp)
 
     Movie.Frames = (size - headersize) / framelength;
 
-    fseek(fp, fpos, SEEK_SET);    // reset back to correct pos
+    fseek(fp, fpos, SEEK_SET);
     return (size);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void MovieToggleReadOnly(void)
 {
@@ -286,15 +220,11 @@ void MovieToggleReadOnly(void)
 
         if (Movie.ReadOnly == 1) {
             Movie.ReadOnly = 0;
-            // DisplayMessage("Movie is now read+write.");
         } else {
             Movie.ReadOnly = 1;
-            // DisplayMessage("Movie is now read only.");
         }
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void StopMovie(void)
 {
@@ -314,8 +244,6 @@ void StopMovie(void)
         strcpy(MovieStatus, "Playback Stopped");
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 int SaveMovie(const char *filename)
 {
@@ -342,8 +270,6 @@ int SaveMovie(const char *filename)
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 int PlayMovie(const char *filename)
 {
 
@@ -351,7 +277,6 @@ int PlayMovie(const char *filename)
 
     if (Movie.Status == Recording)
         StopMovie();
-
 
     if ((Movie.fp = fopen(filename, "r+b")) == NULL) {
         free(str);
@@ -371,8 +296,6 @@ int PlayMovie(const char *filename)
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void SaveMovieInState(void **stream)
 {
 
@@ -388,13 +311,11 @@ void SaveMovieInState(void **stream)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void MovieReadState(const void *stream)
 {
 
     ReadMovieInState(stream);
-    MovieLoadState();    // file pointer and truncation
+    MovieLoadState();
 }
 
 void ReadMovieInState(const void *stream)
@@ -403,30 +324,27 @@ void ReadMovieInState(const void *stream)
     struct MovieBufferStruct tempbuffer;
     int                      fpos;
 
-    // overwrite the main movie on disk if we are recording or read+write playback
     if (Movie.Status == Recording || (Movie.Status == Playback && Movie.ReadOnly == 0)) {
 
-        fpos = MemStateGetOffset();    // where we are in the savestate
+        fpos = MemStateGetOffset();
 
         if (fpos < 0) {
             YabSetError(YAB_ERR_OTHER, "ReadMovieInState fpos is negative");
             return;
         }
 
-        MemStateRead(&tempbuffer.size, 4, 1, stream);    // size
+        MemStateRead(&tempbuffer.size, 4, 1, stream);
         if ((tempbuffer.data = (char *)malloc(tempbuffer.size)) == NULL) {
             return;
         }
-        MemStateRead(tempbuffer.data, 1, tempbuffer.size, stream);    // movie
-        MemStateSetOffset(fpos);                                      // reset savestate position
+        MemStateRead(tempbuffer.data, 1, tempbuffer.size, stream);
+        MemStateSetOffset(fpos);
 
         rewind(Movie.fp);
         fwrite(&(tempbuffer.data), 1, tempbuffer.size, Movie.fp);
         rewind(Movie.fp);
     }
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 struct MovieBufferStruct *ReadMovieIntoABuffer(FILE *fp)
 {
@@ -435,7 +353,7 @@ struct MovieBufferStruct *ReadMovieIntoABuffer(FILE *fp)
     struct MovieBufferStruct *tempbuffer = (struct MovieBufferStruct *)malloc(sizeof(struct MovieBufferStruct));
     size_t                    num_read   = 0;
 
-    fpos = ftell(fp);    // save current pos
+    fpos = ftell(fp);
 
     if (fpos < 0) {
         YabSetError(YAB_ERR_OTHER, "ReadMovieIntoABuffer fpos is negative");
@@ -443,39 +361,34 @@ struct MovieBufferStruct *ReadMovieIntoABuffer(FILE *fp)
     }
 
     fseek(fp, 0, SEEK_END);
-    tempbuffer->size = ftell(fp);    // get size
+    tempbuffer->size = ftell(fp);
     rewind(fp);
 
     tempbuffer->data = (char *)malloc(sizeof(char) * tempbuffer->size);
     num_read         = fread(tempbuffer->data, 1, tempbuffer->size, fp);
 
-    fseek(fp, fpos, SEEK_SET);    // reset back to correct pos
+    fseek(fp, fpos, SEEK_SET);
     return (tempbuffer);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 const char *MakeMovieStateName(const char *filename)
 {
 
-    static char *retbuf = NULL;    // Save the pointer to avoid memory leaks
+    static char *retbuf = NULL;
     if (Movie.Status == Recording || Movie.Status == Playback) {
         const size_t newsize = strlen(filename) + 5 + 1;
         free(retbuf);
         retbuf = (char *)malloc(newsize);
         if (!retbuf) {
-            return NULL;    // out of memory
+            return NULL;
         }
         sprintf(retbuf, "%smovie", filename);
         return retbuf;
     } else {
-        return filename;    // unchanged
+        return filename;
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
-// debugging only
 void TestWrite(struct MovieBufferStruct tempbuffer)
 {
 
@@ -490,8 +403,6 @@ void TestWrite(struct MovieBufferStruct tempbuffer)
     fclose(tempbuffertest);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void PauseOrUnpause(void)
 {
 
@@ -504,8 +415,6 @@ void PauseOrUnpause(void)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 int IsMovieLoaded(void)
 {
     if (RecordingFileOpened || PlaybackFileOpened)
@@ -513,5 +422,3 @@ int IsMovieLoaded(void)
     else
         return 0;
 }
-
-//////////////////////////////////////////////////////////////////////////////

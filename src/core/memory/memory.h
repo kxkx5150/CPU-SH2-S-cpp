@@ -1,22 +1,3 @@
-/*  Copyright 2005-2006 Guillaume Duhamel
-    Copyright 2005 Theo Berkau
-
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
 
 #ifndef MEMORY_H
 #define MEMORY_H
@@ -28,8 +9,6 @@ extern "C" {
 #include <stdlib.h>
 #include "core.h"
 #include "sh2core.h"
-
-/* Type 1 Memory, faster for byte (8 bits) accesses */
 
 u8  *T1MemoryInit(u32);
 void T1MemoryDeInit(u8 *);
@@ -80,8 +59,6 @@ static INLINE void T1WriteLong(u8 *mem, u32 addr, u32 val)
 #endif
 }
 
-/* Type 2 Memory, faster for word (16 bits) accesses */
-
 #define T2MemoryInit(x)   (T1MemoryInit(x))
 #define T2MemoryDeInit(x) (T1MemoryDeInit(x))
 
@@ -130,8 +107,6 @@ static INLINE void T2WriteLong(u8 *mem, u32 addr, u32 val)
     *((u32 *)(mem + addr)) = WSWAP32(val);
 #endif
 }
-
-/* Type 3 Memory, faster for long (32 bits) accesses */
 
 typedef struct
 {
@@ -208,7 +183,6 @@ static INLINE int TSize(const char *filename)
         return -1;
     }
 
-    // Calculate file size
     fseek(fp, 0, SEEK_END);
     filesize = ftell(fp);
     fseek(fp, 0, SEEK_SET);
@@ -231,7 +205,6 @@ static INLINE int T123Load(void *mem, u32 size, int type, const char *filename)
         return -1;
     }
 
-    // Calculate file size
     fseek(fp, 0, SEEK_END);
     filesize = ftell(fp);
     fseek(fp, 0, SEEK_SET);
@@ -242,8 +215,6 @@ static INLINE int T123Load(void *mem, u32 size, int type, const char *filename)
     }
 
     if (filesize > size) {
-        // fclose(fp);
-        // return -1;
         filesize = size;
     }
 
@@ -384,14 +355,13 @@ extern readwordfunc ReadWordList[0x1000];
 extern readlongfunc ReadLongList[0x1000];
 
 extern u8 **MemoryBuffer[0x1000];
-#ifdef USE_CACHE
+
 extern readbytefunc  CacheReadByteList[0x1000];
 extern readwordfunc  CacheReadWordList[0x1000];
 extern readlongfunc  CacheReadLongList[0x1000];
 extern writebytefunc CacheWriteByteList[0x1000];
 extern writewordfunc CacheWriteWordList[0x1000];
 extern writelongfunc CacheWriteLongList[0x1000];
-#endif
 
 typedef struct
 {

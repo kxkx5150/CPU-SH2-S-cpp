@@ -1,36 +1,10 @@
-/*  Copyright 2005 Guillaume Duhamel
-    Copyright 2006 Theo Berkau
 
-    This file is part of Yabause.
-
-    Yabause is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Yabause is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Yabause; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-*/
-
-/*! \file debug.c
-    \brief Debug logging functions.
-*/
 
 #include "debug.h"
 
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-
-// #include "osdcore.h"
-
-//////////////////////////////////////////////////////////////////////////////
 
 Debug *DebugInit(const char *n, DebugOutType t, char *s)
 {
@@ -67,8 +41,6 @@ Debug *DebugInit(const char *n, DebugOutType t, char *s)
     return d;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 void DebugDeInit(Debug *d)
 {
     if (d == NULL)
@@ -89,8 +61,6 @@ void DebugDeInit(Debug *d)
         free(d->name);
     free(d);
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void DebugChangeOutput(Debug *d, DebugOutType t, char *s)
 {
@@ -123,8 +93,6 @@ void DebugChangeOutput(Debug *d, DebugOutType t, char *s)
 #ifdef _WINDOWS
 #include <Windows.h>
 #endif
-
-//////////////////////////////////////////////////////////////////////////////
 
 void DebugLog(const char *format, ...)
 {
@@ -180,12 +148,7 @@ void DebugPrintf(Debug *d, const char *file, u32 line, const char *format, ...)
                 dfp = fopen("/mnt/sdcard/debug.txt", "w");
             }
 #endif
-            // i = sprintf(strtmp, "%s (%s:%ld): ", d->name, file, (long)line);
             i += vsprintf(strtmp + i, format, l);
-            // for ( ; i>0 ; i-- ) strnewhash += (int)(strtmp[i]);
-            // if (strnewhash != strhash) {
-            // OutputDebugString(strtmp);
-            // d->output.callback(strtmp);
             OSDAddLogString(strtmp);
 #if defined(ANDROID)
             fprintf(dfp, "%s", strtmp);
@@ -195,35 +158,24 @@ void DebugPrintf(Debug *d, const char *file, u32 line, const char *format, ...)
             fprintf(dfp, "%s\n", strtmp);
             fflush(dfp);
 #endif
-            //}
-            // strhash = strnewhash;
         } break;
     }
 
     va_end(l);
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
 Debug *MainLog;
-
-//////////////////////////////////////////////////////////////////////////////
 
 void LogStart(void)
 {
     MainLog = DebugInit("main", DEBUG_STDOUT, NULL);
-    //        MainLog = DebugInit("main", DEBUG_STREAM, "stdout.txt");
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void LogStop(void)
 {
     DebugDeInit(MainLog);
     MainLog = NULL;
 }
-
-//////////////////////////////////////////////////////////////////////////////
 
 void LogChangeOutput(DebugOutType t, char *s)
 {

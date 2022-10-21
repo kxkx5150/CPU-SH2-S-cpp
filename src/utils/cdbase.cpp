@@ -84,8 +84,6 @@ static void DummyCDDeInit(void)
 }
 static int DummyCDGetStatus(void)
 {
-    //
-    //
     return dmy_status;
 }
 static void DummyCDSetStatus(int status)
@@ -98,23 +96,15 @@ static void DummyCDSetStatus(int status)
 }
 static s32 DummyCDReadTOC(UNUSED u32 *TOC)
 {
-    //
-    //
-    //
-    //
-    //
     return 0;
 }
 static int DummyCDReadSectorFAD(UNUSED u32 FAD, void *buffer)
 {
-    //
-    //
     memset(buffer, 0, 2352);
     return 1;
 }
 static void DummyCDReadAheadFAD(UNUSED u32 FAD)
 {
-    //
 }
 typedef struct
 {
