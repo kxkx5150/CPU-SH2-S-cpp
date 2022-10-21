@@ -34,20 +34,16 @@ SH2Interface_struct        *SH2Core = NULL;
 extern SH2Interface_struct *SH2CoreList[];
 
 void        OnchipReset(SH2_struct *context);
-static void FRTExec(SH2_struct *context);
-static void WDTExec(SH2_struct *context);
+static void FRTExec(SH2_struct *context, u32 cycles);
+static void WDTExec(SH2_struct *context, u32 cycles);
 u8          SCIReceiveByte(void);
 void        SCITransmitByte(u8);
-
 
 void enableCache(SH2_struct *ctx);
 void disableCache(SH2_struct *ctx);
 void InvalidateCache(SH2_struct *ctx);
 
 #define CACHE_LOG
-
-void DMATransferCycles(SH2_struct *context, Dmac *dmac, int cycles);
-int  DMAProc(SH2_struct *context, int cycles);
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -63,19 +59,6 @@ int SH2Init(int coreid)
     MSH2->isslave     = 0;
     MSH2->trace       = 0;
 
-    MSH2->dma_ch0.CHCR   = &MSH2->onchip.CHCR0;
-    MSH2->dma_ch0.CHCRM  = &MSH2->onchip.CHCR0M;
-    MSH2->dma_ch0.SAR    = &MSH2->onchip.SAR0;
-    MSH2->dma_ch0.DAR    = &MSH2->onchip.DAR0;
-    MSH2->dma_ch0.TCR    = &MSH2->onchip.TCR0;
-    MSH2->dma_ch0.VCRDMA = &MSH2->onchip.VCRDMA0;
-    MSH2->dma_ch1.CHCR   = &MSH2->onchip.CHCR1;
-    MSH2->dma_ch1.CHCRM  = &MSH2->onchip.CHCR1M;
-    MSH2->dma_ch1.SAR    = &MSH2->onchip.SAR1;
-    MSH2->dma_ch1.DAR    = &MSH2->onchip.DAR1;
-    MSH2->dma_ch1.TCR    = &MSH2->onchip.TCR1;
-    MSH2->dma_ch1.VCRDMA = &MSH2->onchip.VCRDMA1;
-
     // SSH2
     if ((SSH2 = (SH2_struct *)calloc(1, sizeof(SH2_struct))) == NULL)
         return -1;
@@ -84,40 +67,29 @@ int SH2Init(int coreid)
     SSH2->onchip.BCR1 = 0x8000;
     SSH2->isslave     = 1;
 
-    SSH2->dma_ch0.CHCR   = &SSH2->onchip.CHCR0;
-    SSH2->dma_ch0.CHCRM  = &SSH2->onchip.CHCR0M;
-    SSH2->dma_ch0.SAR    = &SSH2->onchip.SAR0;
-    SSH2->dma_ch0.DAR    = &SSH2->onchip.DAR0;
-    SSH2->dma_ch0.TCR    = &SSH2->onchip.TCR0;
-    SSH2->dma_ch0.VCRDMA = &SSH2->onchip.VCRDMA0;
-    SSH2->dma_ch1.CHCR   = &SSH2->onchip.CHCR1;
-    SSH2->dma_ch1.CHCRM  = &SSH2->onchip.CHCR1M;
-    SSH2->dma_ch1.SAR    = &SSH2->onchip.SAR1;
-    SSH2->dma_ch1.DAR    = &SSH2->onchip.DAR1;
-    SSH2->dma_ch1.TCR    = &SSH2->onchip.TCR1;
-    SSH2->dma_ch1.VCRDMA = &SSH2->onchip.VCRDMA1;
-
+    // #ifdef USE_CACHE
     MSH2->cacheOn = 0;
     SSH2->cacheOn = 0;
 
-#ifdef USE_CACHE
     memset(MSH2->tagWay, 0x4, 64 * 0x80000);
     memset(MSH2->cacheTagArray, 0x0, 64 * 4 * sizeof(u32));
     memset(SSH2->tagWay, 0x4, 64 * 0x80000);
     memset(SSH2->cacheTagArray, 0x0, 64 * 4 * sizeof(u32));
-#endif
+    // #endif
     // So which core do we want?
     if (coreid == SH2CORE_DEFAULT)
         coreid = 0;    // Assume we want the first one
 
     // Go through core list and find the id
     for (i = 0; SH2CoreList[i] != NULL; i++) {
-        if (SH2CoreList[i]->id == coreid) {
+        if (SH2CoreList[i]) {
             // Set to current core
             SH2Core = SH2CoreList[i];
             break;
         }
     }
+
+    printf("sh2 aaaaaaaaaaaaaaaaaaaaaaaaaa \n\r");
 
     if ((SH2Core == NULL) || (SH2Core->Init() != 0)) {
         free(MSH2);
@@ -125,6 +97,7 @@ int SH2Init(int coreid)
         MSH2 = SSH2 = NULL;
         return -1;
     }
+    printf("sh2 bbbbb \n\r");
 
     SH2Reset(MSH2);
     SH2Reset(SSH2);
@@ -156,6 +129,7 @@ void SH2DeInit()
 void SH2Reset(SH2_struct *context)
 {
     int i;
+    CACHE_LOG("%s reset\n", (context == SSH2) ? "SSH2" : "MSH2");
     SH2Core->Reset(context);
 
     // Reset general registers
@@ -170,10 +144,8 @@ void SH2Reset(SH2_struct *context)
     SH2Core->SetPR(context, 0x00000000);
 
     // Internal variables
-    context->delay     = 0x00000000;
-    context->cycles    = 0;
-    context->frtcycles = 0;
-    context->wdtcycles = 0;
+    context->delay  = 0x00000000;
+    context->cycles = 0;
 
     context->frc.leftover = 0;
     context->frc.shift    = 3;
@@ -219,9 +191,8 @@ void FASTCALL SH2TestExec(SH2_struct *context, u32 cycles)
 void FASTCALL SH2Exec(SH2_struct *context, u32 cycles)
 {
     SH2Core->Exec(context, cycles);
-    FRTExec(context);
-    WDTExec(context);
-    DMAProc(context, cycles);
+    FRTExec(context, cycles);
+    WDTExec(context, cycles);
 }
 
 void FASTCALL SH2OnFrame(SH2_struct *context)
@@ -270,10 +241,8 @@ void SH2SetRegisters(SH2_struct *context, sh2regs_struct *r)
 
 void SH2WriteNotify(SH2_struct *context, u32 start, u32 length)
 {
-    if (context == NULL)
-        return;
     if (SH2Core->WriteNotify)
-        SH2Core->WriteNotify(context, start, length);
+        SH2Core->WriteNotify(start, length);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -304,7 +273,6 @@ void OnchipReset(SH2_struct *context)
     context->onchip.DRCR0     = 0x00;
     context->onchip.DRCR1     = 0x00;
     context->onchip.WTCSR     = 0x18;
-    context->onchip.WTCSRM    = 0x0;
     context->onchip.WTCNT     = 0x00;
     context->onchip.RSTCSR    = 0x1F;
     context->onchip.SBYCR     = 0x60;
@@ -340,22 +308,6 @@ void OnchipReset(SH2_struct *context)
 
 u8 FASTCALL OnchipReadByte(SH2_struct *context, u32 addr)
 {
-    switch (addr) {
-        case 0x10:
-        case 0x11:
-        case 0x12:
-        case 0x13:
-        case 0x14:
-        case 0x15:
-        case 0x16:
-        case 0x17:
-        case 0x18:
-        case 0x19:
-            FRTExec(context);
-            break;
-        default:
-            break;
-    }
     switch (addr) {
         case 0x000:
             return context->onchip.SMR;
@@ -433,7 +385,7 @@ u8 FASTCALL OnchipReadByte(SH2_struct *context, u32 addr)
         case 0x068:
             return context->onchip.VCRD >> 8;
         case 0x080:
-            return context->onchip.WTCSR;    // & 0x18;
+            return context->onchip.WTCSR;
         case 0x081:
             return context->onchip.WTCNT;
         case 0x092:
@@ -463,29 +415,6 @@ u8 FASTCALL OnchipReadByte(SH2_struct *context, u32 addr)
 u16 FASTCALL OnchipReadWord(SH2_struct *context, u32 addr)
 {
     switch (addr) {
-        case 0x10:
-        case 0x11:
-        case 0x12:
-        case 0x13:
-        case 0x14:
-        case 0x15:
-        case 0x16:
-        case 0x17:
-        case 0x18:
-        case 0x19:
-            FRTExec(context);
-            break;
-        default:
-            break;
-    }
-    switch (addr) {
-        case 0x012:
-            return context->onchip.FRC.all;
-        case 0x014:
-            if (!(context->onchip.TOCR & 0x10))
-                return context->onchip.OCRA;
-            else
-                return context->onchip.OCRB;
         case 0x060:
             return context->onchip.IPRB;
         case 0x062:
@@ -529,22 +458,6 @@ u16 FASTCALL OnchipReadWord(SH2_struct *context, u32 addr)
 u32 FASTCALL OnchipReadLong(SH2_struct *context, u32 addr)
 {
     switch (addr) {
-        case 0x10:
-        case 0x11:
-        case 0x12:
-        case 0x13:
-        case 0x14:
-        case 0x15:
-        case 0x16:
-        case 0x17:
-        case 0x18:
-        case 0x19:
-            FRTExec(context);
-            break;
-        default:
-            break;
-    }
-    switch (addr) {
         case 0x100:
         case 0x120:
             return context->onchip.DVSR;
@@ -576,7 +489,6 @@ u32 FASTCALL OnchipReadLong(SH2_struct *context, u32 addr)
         case 0x188:
             return context->onchip.TCR0;
         case 0x18C:
-            context->onchip.CHCR0M = 0;
             return context->onchip.CHCR0;
         case 0x190:
             return context->onchip.SAR1;
@@ -619,22 +531,6 @@ u32 FASTCALL OnchipReadLong(SH2_struct *context, u32 addr)
 
 void FASTCALL OnchipWriteByte(SH2_struct *context, u32 addr, u8 val)
 {
-    switch (addr) {
-        case 0x10:
-        case 0x11:
-        case 0x12:
-        case 0x13:
-        case 0x14:
-        case 0x15:
-        case 0x16:
-        case 0x17:
-        case 0x18:
-        case 0x19:
-            FRTExec(context);
-            break;
-        default:
-            break;
-    }
     switch (addr) {
         case 0x000:
             //         LOG("Serial Mode Register write: %02X\n", val);
@@ -682,11 +578,9 @@ void FASTCALL OnchipWriteByte(SH2_struct *context, u32 addr, u8 val)
             return;
         case 0x012:
             context->onchip.FRC.part.H = val;
-            context->frtcycles         = context->cycles;
             return;
         case 0x013:
             context->onchip.FRC.part.L = val;
-            context->frtcycles         = context->cycles;
             return;
         case 0x014:
             if (!(context->onchip.TOCR & 0x10))
@@ -796,22 +690,6 @@ void FASTCALL OnchipWriteByte(SH2_struct *context, u32 addr, u8 val)
 void FASTCALL OnchipWriteWord(SH2_struct *context, u32 addr, u16 val)
 {
     switch (addr) {
-        case 0x10:
-        case 0x11:
-        case 0x12:
-        case 0x13:
-        case 0x14:
-        case 0x15:
-        case 0x16:
-        case 0x17:
-        case 0x18:
-        case 0x19:
-            FRTExec(context);
-            break;
-        default:
-            break;
-    }
-    switch (addr) {
         case 0x060:
             context->onchip.IPRB = val & 0xFF00;
             return;
@@ -863,18 +741,10 @@ void FASTCALL OnchipWriteWord(SH2_struct *context, u32 addr, u16 val)
                 context->wdt.isenable   = (val & 0x20);
                 context->wdt.isinterval = (~val & 0x40);
 
-                context->onchip.WTCSR = (context->onchip.WTCSR & (context->onchip.WTCSRM | val) & 0x80) | (val & 0x67);
-                context->onchip.WTCSR &= ~0x80;
-                if (context->onchip.WTCSR & 0x20) {
-                    context->onchip.SBYCR &= 0x7F;
-                } else {
-                    context->onchip.WTCSR &= ~0x80;
-                    context->onchip.WTCNT = 0;
-                }
+                context->onchip.WTCSR = (u8)val | 0x18;
             } else if (val >> 8 == 0x5A) {
                 // WTCNT
-                if (context->onchip.WTCSR & 0x20)
-                    context->onchip.WTCNT = (u8)val;
+                context->onchip.WTCNT = (u8)val;
             }
             return;
         case 0x082:
@@ -903,7 +773,6 @@ void FASTCALL OnchipWriteWord(SH2_struct *context, u32 addr, u16 val)
             context->onchip.IPRA = val & 0xFFF0;
             return;
         case 0x0E4:
-        case 0x0E5:
             context->onchip.VCRWDT = val & 0x7F7F;
             return;
         case 0x108:
@@ -926,22 +795,6 @@ void FASTCALL OnchipWriteWord(SH2_struct *context, u32 addr, u16 val)
 
 void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
 {
-    switch (addr) {
-        case 0x10:
-        case 0x11:
-        case 0x12:
-        case 0x13:
-        case 0x14:
-        case 0x15:
-        case 0x16:
-        case 0x17:
-        case 0x18:
-        case 0x19:
-            FRTExec(context);
-            break;
-        default:
-            break;
-    }
     switch (addr) {
         case 0x010:
             context->onchip.TIER = (val & 0x8E) | 0x1;
@@ -1088,20 +941,13 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
             context->onchip.TCR0 = val & 0xFFFFFF;
             return;
         case 0x18C:
-            if (context->onchip.TCR0 != 0) {
-                DMAProc(context, 0x7FFFFFFF);
-            }
-            //         context->onchip.CHCR0 = val & 0xFFFF;
-
-            context->onchip.CHCR0 = (val & ~2) | (context->onchip.CHCR0 & (val | context->onchip.CHCR0M) & 2);
+            context->onchip.CHCR0 = val & 0xFFFF;
 
             // If the DMAOR DME bit is set and AE and NMIF bits are cleared,
             // and CHCR's DE bit is set and TE bit is cleared,
             // do a dma transfer
-            if ((context->onchip.DMAOR & 7) == 1 && (val & 0x3) == 1) {
-                context->dma_ch0.copy_clock = 0;
+            if ((context->onchip.DMAOR & 7) == 1 && (val & 0x3) == 1)
                 DMAExec(context);
-            }
             return;
         case 0x190:
             context->onchip.SAR1 = val;
@@ -1113,21 +959,15 @@ void FASTCALL OnchipWriteLong(SH2_struct *context, u32 addr, u32 val)
             context->onchip.TCR1 = val & 0xFFFFFF;
             return;
         case 0x19C:
-            if (context->onchip.TCR1 != 0) {
-                DMAProc(context, 0x7FFFFFFF);
-            }
-            //         context->onchip.CHCR1 = val & 0xFFFF;
+            context->onchip.CHCR1 = val & 0xFFFF;
 
             context->onchip.CHCR1 = (val & ~2) | (context->onchip.CHCR1 & (val | context->onchip.CHCR1M) & 2);
-
 
             // If the DMAOR DME bit is set and AE and NMIF bits are cleared,
             // and CHCR's DE bit is set and TE bit is cleared,
             // do a dma transfer
-            if ((context->onchip.DMAOR & 7) == 1 && (context->onchip.CHCR1 & 0x3) == 1) {
-                context->dma_ch1.copy_clock = 0;
+            if ((context->onchip.DMAOR & 7) == 1 && (context->onchip.CHCR1 & 0x3) == 1)
                 DMAExec(context);
-            }
             return;
         case 0x1A0:
             context->onchip.VCRDMA0 = val & 0xFFFF;
@@ -1311,7 +1151,6 @@ void InvalidateCache(SH2_struct *ctx)
     memset(ctx->cacheLRU, 0, 64);
     memset(ctx->tagWay, 0x4, 64 * 0x80000);
     memset(ctx->cacheTagArray, 0x0, 64 * 4 * sizeof(u32));
-    SH2WriteNotify(ctx, 0, 0x1000);
 #endif
 }
 
@@ -1324,17 +1163,7 @@ void enableCache(SH2_struct *context)
     if (context->cacheOn == 0) {
         context->cacheOn    = 1;
         context->nbCacheWay = 4;
-        for (i = 0x20; i < 0x30; i++) {
-            // LowWRam is cached
-            CacheReadByteList[i]  = CacheReadByte;
-            CacheReadWordList[i]  = CacheReadWord;
-            CacheReadLongList[i]  = CacheReadLong;
-            CacheWriteByteList[i] = CacheWriteByte;
-            CacheWriteWordList[i] = CacheWriteWord;
-            CacheWriteLongList[i] = CacheWriteLong;
-        }
-        for (i = 0x600; i < 0x800; i++) {
-            // HiWRam is cached
+        for (i = 0x10; i < 0x1000; i++) {
             CacheReadByteList[i]  = CacheReadByte;
             CacheReadWordList[i]  = CacheReadWord;
             CacheReadLongList[i]  = CacheReadLong;
@@ -1354,17 +1183,7 @@ void disableCache(SH2_struct *context)
     int i;
     if (context->cacheOn == 1) {
         context->cacheOn = 0;
-        for (i = 0x20; i < 0x30; i++) {
-            // LowWRam is cached
-            CacheReadByteList[i]  = ReadByteList[i];
-            CacheReadWordList[i]  = ReadWordList[i];
-            CacheReadLongList[i]  = ReadLongList[i];
-            CacheWriteByteList[i] = WriteByteList[i];
-            CacheWriteWordList[i] = WriteWordList[i];
-            CacheWriteLongList[i] = WriteLongList[i];
-        }
-        for (i = 0x600; i < 0x800; i++) {
-            // HiWRam is cached
+        for (i = 0x10; i < 0x1000; i++) {
             CacheReadByteList[i]  = ReadByteList[i];
             CacheReadWordList[i]  = ReadWordList[i];
             CacheReadLongList[i]  = ReadLongList[i];
@@ -1392,7 +1211,6 @@ void CacheFetch(SH2_struct *context, u8 *memory, u32 addr, u8 way)
         CacheWriteVal(context, (addr & (~0xF)) | (i * 4), ret, 4);
         // printf("Fetch (%x) (%d)=%x\n", (addr&(~0xF))|(i*4), i, ret);
     }
-    SH2WriteNotify(context, (addr & (~0xF)), 4);
     // for (int i =0; i<=0xF; i++) {
     //   printf("%x ", context->cacheData[line][way][i]);
     // }
@@ -1600,15 +1418,11 @@ void FASTCALL DataArrayWriteLong(SH2_struct *context, u32 addr, u32 val)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void FRTExec(SH2_struct *context)
+void FRTExec(SH2_struct *context, u32 cycles)
 {
     u32 frcold;
     u32 frctemp;
     u32 mask;
-
-    u32 cycles = context->cycles - context->frtcycles;
-
-    context->frtcycles = context->cycles;
 
     frcold = frctemp = (u32)context->onchip.FRC.all;
     mask             = (1 << context->frc.shift) - 1;
@@ -1658,14 +1472,10 @@ void FRTExec(SH2_struct *context)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void WDTExec(SH2_struct *context)
+void WDTExec(SH2_struct *context, u32 cycles)
 {
     u32 wdttemp;
     u32 mask;
-
-    u32 cycles = context->cycles - context->wdtcycles;
-
-    context->wdtcycles = context->cycles;
 
     if (!context->wdt.isenable || context->onchip.WTCSR & 0x80 || context->onchip.RSTCSR & 0x80)
         return;
@@ -1702,176 +1512,54 @@ void WDTExec(SH2_struct *context)
 
 void DMAExec(SH2_struct *context)
 {
-    DMAProc(context, 200);
-}
-
-int DMAProc(SH2_struct *context, int cycles)
-{
-
+    // If AE and NMIF bits are set, we can't continue
     if (context->onchip.DMAOR & 0x6)
-        return 0;
-
+        return;
 
     if (((context->onchip.CHCR0 & 0x3) == 0x01) &&
         ((context->onchip.CHCR1 & 0x3) == 0x01)) {    // both channel wants DMA
         if (context->onchip.DMAOR & 0x8) {            // round robin priority
+            LOG("dma\t: FIXME: two channel dma - round robin priority not properly implemented\n");
+            DMATransfer(context, &context->onchip.CHCR0, &context->onchip.SAR0, &context->onchip.DAR0,
+                        &context->onchip.TCR0, &context->onchip.VCRDMA0);
+            DMATransfer(context, &context->onchip.CHCR1, &context->onchip.SAR1, &context->onchip.DAR1,
+                        &context->onchip.TCR1, &context->onchip.VCRDMA1);
 
-            if ((context->onchip.CHCR0 & 0x08) == 0) {
-                cycles <<= 1;
-            }    // Dual Chanel
-
-            DMATransferCycles(context, &context->dma_ch0, cycles);
-            DMATransferCycles(context, &context->dma_ch1, cycles);
-
+            context->onchip.CHCR1M |= 2;
         } else {    // channel 0 > channel 1 priority
-
-            if ((context->onchip.CHCR0 & 0x03) == 0x01) {
-                if ((context->onchip.CHCR0 & 0x08) == 0) {
-                    cycles <<= 1;
-                }    // Dual Chanel
-                DMATransferCycles(context, &context->dma_ch0, cycles);
-            } else if ((context->onchip.CHCR1 & 0x03) == 0x01) {
-                if ((context->onchip.CHCR1 & 0x08) == 0) {
-                    cycles <<= 1;
-                }    // Dual Chanel
-                DMATransferCycles(context, &context->dma_ch1, cycles);
-            }
+            DMATransfer(context, &context->onchip.CHCR0, &context->onchip.SAR0, &context->onchip.DAR0,
+                        &context->onchip.TCR0, &context->onchip.VCRDMA0);
+            DMATransfer(context, &context->onchip.CHCR1, &context->onchip.SAR1, &context->onchip.DAR1,
+                        &context->onchip.TCR1, &context->onchip.VCRDMA1);
+            context->onchip.CHCR1M |= 2;
         }
     } else {                                              // only one channel wants DMA
         if (((context->onchip.CHCR0 & 0x3) == 0x01)) {    // DMA for channel 0
-
-            if ((context->onchip.CHCR0 & 0x08) == 0) {
-                cycles <<= 1;
-            }    // Dual Chanel
-            DMATransferCycles(context, &context->dma_ch0, cycles);
-            return 0;
-        } else if (((context->onchip.CHCR1 & 0x3) == 0x01)) {    // DMA for channel 1
-            if ((context->onchip.CHCR1 & 0x08) == 0) {
-                cycles <<= 1;
-            }    // Dual Chanel
-            DMATransferCycles(context, &context->dma_ch1, cycles);
-            return 0;
+            DMATransfer(context, &context->onchip.CHCR0, &context->onchip.SAR0, &context->onchip.DAR0,
+                        &context->onchip.TCR0, &context->onchip.VCRDMA0);
+            return;
+        }
+        if (((context->onchip.CHCR1 & 0x3) == 0x01)) {    // DMA for channel 1
+            DMATransfer(context, &context->onchip.CHCR1, &context->onchip.SAR1, &context->onchip.DAR1,
+                        &context->onchip.TCR1, &context->onchip.VCRDMA1);
+            context->onchip.CHCR1M |= 2;
+            return;
         }
     }
-    return 0;
 }
 
-int getEatClock(u32 src, u32 dst)
-{
-    switch (src & 0x0FF00000) {
-        case 0x05800000:
-            return 1;
-            break;
-        case 0x05E00000:    // VDP2 RAM
-            switch (dst & 0x0FF00000) {
-                case 0x06000000:    // High
-                    return 44;
-                    break;
-                case 0x00200000:    // Low
-                    return 50;
-                    break;
-                case 0x05A00000:    // SOUND RAM
-                case 0x05B00000:    // SOUND REG
-                    return 427;
-                    break;
-                case 0x05C00000:    // VDP1 RAM
-                    return 427;
-                case 0x05D00000:    // VDP1 REG
-                    return 427;
-                    break;
-                case 0x05E00000:    // VDP2 RAM
-                    return 1;
-                    break;
-                case 0x05F00000:    // VDP2 REG
-                    return 50;
-                    break;
-                default:
-                    return 44;
-                    break;
-            }
-            break;
-        case 0x05C00000:    // VDP1 RAM
-            switch (dst & 0x0FF00000) {
-                case 0x06000000:    // High
-                    return 50;
-                    break;
-                case 0x00200000:    // Low
-                    return 50;
-                    break;
-                case 0x05A00000:    // SOUND RAM
-                case 0x05B00000:    // SOUND REG
-                    return 50;
-                    break;
-                case 0x05C00000:    // VDP1 RAM
-                    return 570;
-                case 0x05D00000:    // VDP1 REG
-                    return 570;
-                    break;
-                case 0x05E00000:    // VDP2 RAM
-                    return 225;
-                    break;
-                case 0x05F00000:    // VDP2 REG
-                    return 50;
-                    break;
-                default:
-                    return 44;
-                    break;
-            }
-            break;
-        case 0x06000000:    // High
-        case 0x00200000:    // Low
-        default:
-            switch (dst & 0x0FF00000) {
-                case 0x06000000:    // High
-                case 0x00200000:    // Low
-                    return 14;
-                    break;
-                case 0x05A00000:    // SOUND RAM
-                case 0x05B00000:    // SOUND REG
-                    return 20;
-                    break;
-                case 0x05C00000:    // VDP1 RAM
-                    return 14;
-                case 0x05D00000:    // VDP1 REG
-                    return 30;
-                    break;
-                case 0x05E00000:    // VDP2 RAM
-                    return 82;
-                    break;
-                case 0x05F00000:    // VDP2 REG
-                    return 14;
-                    break;
-                default:
-                    return 14;
-                    break;
-            }
-            break;
-    }
+//////////////////////////////////////////////////////////////////////////////
 
-    return 14;
-}
-
-void DMATransferCycles(SH2_struct *context, Dmac *dmac, int cycles)
+void DMATransfer(SH2_struct *context, u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA)
 {
     int size;
-    u32 i = 0;
-    int count;
+    u32 i, i2;
 
-    // LOG("sh2 dma src=%08X,dst=%08X,%d type:%d cycle:%d\n", *dmac->SAR, *dmac->DAR, *dmac->TCR, ((*dmac->CHCR &
-    // 0x0C00) >> 10), cycles);
-
-    if (!(*dmac->CHCR & 0x2)) {    // TE is not set
+    if (!(*CHCR & 0x2)) {    // TE is not set
         int srcInc;
         int destInc;
 
-        int type = ((*dmac->CHCR & 0x0C00) >> 10);
-        int eat  = getEatClock(*dmac->SAR, *dmac->DAR);
-
-        dmac->copy_clock += cycles;
-        if (dmac->copy_clock < eat)
-            return;
-
-        switch (*dmac->CHCR & 0x3000) {
+        switch (*CHCR & 0x3000) {
             case 0x0000:
                 srcInc = 0;
                 break;
@@ -1886,7 +1574,7 @@ void DMATransferCycles(SH2_struct *context, Dmac *dmac, int cycles)
                 break;
         }
 
-        switch (*dmac->CHCR & 0xC000) {
+        switch (*CHCR & 0xC000) {
             case 0x0000:
                 destInc = 0;
                 break;
@@ -1901,111 +1589,66 @@ void DMATransferCycles(SH2_struct *context, Dmac *dmac, int cycles)
                 break;
         }
 
-        switch (type) {
+        switch (size = ((*CHCR & 0x0C00) >> 10)) {
             case 0:
-                while (dmac->copy_clock >= 0) {
-                    dmac->copy_clock -= eat;
-                    DMAMappedMemoryWriteByte(*dmac->DAR, DMAMappedMemoryReadByte(*dmac->SAR));
-                    *dmac->SAR += srcInc;
-                    *dmac->DAR += destInc;
-                    *dmac->TCR -= 1;
-                    i++;
-                    if (*dmac->TCR <= 0) {
-                        LOG("DMA finished");
-                        if (*dmac->CHCR & 0x4) {
-                            SH2SendInterrupt(context, *dmac->VCRDMA, (context->onchip.IPRA & 0xF00) >> 8);
-                        }
-                        // Set Transfer End bit
-                        *dmac->CHCR |= 0x2;
-                        *dmac->CHCRM |= 0x2;
-                        if (context->cacheOn == 0)
-                            SH2WriteNotify(context, destInc < 0 ? *dmac->DAR : *dmac->DAR - i * destInc,
-                                           i * abs(destInc));
-                        return;
-                    }
+                for (i = 0; i < *TCR; i++) {
+                    DMAMappedMemoryWriteByte(*DAR, DMAMappedMemoryReadByte(*SAR));
+                    *SAR += srcInc;
+                    *DAR += destInc;
                 }
+
+                *TCR = 0;
                 break;
             case 1:
                 destInc *= 2;
                 srcInc *= 2;
-                while (dmac->copy_clock >= 0) {
-                    dmac->copy_clock -= eat;
-                    DMAMappedMemoryWriteWord(*dmac->DAR, DMAMappedMemoryReadWord(*dmac->SAR));
-                    *dmac->SAR += srcInc;
-                    *dmac->DAR += destInc;
-                    *dmac->TCR -= 1;
-                    i++;
-                    if (*dmac->TCR <= 0) {
-                        LOG("DMA finished");
-                        if (*dmac->CHCR & 0x4) {
-                            SH2SendInterrupt(context, *dmac->VCRDMA, (context->onchip.IPRA & 0xF00) >> 8);
-                        }
-                        // Set Transfer End bit
-                        *dmac->CHCR |= 0x2;
-                        *dmac->CHCRM |= 0x2;
-                        if (context->cacheOn == 0)
-                            SH2WriteNotify(context, destInc < 0 ? *dmac->DAR : *dmac->DAR - i * destInc,
-                                           i * abs(destInc));
-                        return;
-                    }
+
+                for (i = 0; i < *TCR; i++) {
+                    DMAMappedMemoryWriteWord(*DAR, DMAMappedMemoryReadWord(*SAR));
+                    *SAR += srcInc;
+                    *DAR += destInc;
                 }
+
+                *TCR = 0;
                 break;
             case 2:
                 destInc *= 4;
                 srcInc *= 4;
-                while (dmac->copy_clock >= 0) {
-                    dmac->copy_clock -= eat;
-                    u32 val = DMAMappedMemoryReadLong(*dmac->SAR);
-                    // printf("CPU DMA src:%08X dst:%08X val:%08X\n", *SAR, *DAR, val);
-                    DMAMappedMemoryWriteLong(*dmac->DAR, val);
-                    *dmac->DAR += destInc;
-                    *dmac->SAR += srcInc;
-                    *dmac->TCR -= 1;
-                    i++;
-                    if (*dmac->TCR <= 0) {
-                        LOG("DMA finished");
-                        if (*dmac->CHCR & 0x4) {
-                            SH2SendInterrupt(context, *dmac->VCRDMA, (context->onchip.IPRA & 0xF00) >> 8);
-                        }
-                        *dmac->CHCR |= 0x2;
-                        *dmac->CHCRM |= 0x2;
-                        if (context->cacheOn == 0)
-                            SH2WriteNotify(context, destInc < 0 ? *dmac->DAR : *dmac->DAR - i * destInc,
-                                           i * abs(destInc));
-                        return;
-                    }
+
+                for (i = 0; i < *TCR; i++) {
+                    DMAMappedMemoryWriteLong(*DAR, DMAMappedMemoryReadLong(*SAR));
+                    *DAR += destInc;
+                    *SAR += srcInc;
                 }
+
+                *TCR = 0;
                 break;
-            case 3:
+            case 3: {
+                u32 buffer[4];
+                u32 show = 0;
                 destInc *= 4;
                 srcInc *= 4;
-                while (dmac->copy_clock >= 0) {
-                    dmac->copy_clock -= (eat >> 2);
-                    u32 val = DMAMappedMemoryReadLong(*dmac->SAR);
-                    // printf("CPU DMA src:%08X dst:%08X val:%08X\n", *SAR, *DAR, val);
-                    DMAMappedMemoryWriteLong(*dmac->DAR, val);
-                    *dmac->DAR += destInc;
-                    *dmac->SAR += srcInc;
-                    *dmac->TCR -= 1;
-                    i++;
-                    if (*dmac->TCR <= 0) {
-                        LOG("DMA finished");
-                        if (*dmac->CHCR & 0x4) {
-                            SH2SendInterrupt(context, *dmac->VCRDMA, (context->onchip.IPRA & 0xF00) >> 8);
-                        }
-                        *dmac->CHCR |= 0x2;
-                        *dmac->CHCRM |= 0x2;
-                        if (context->cacheOn == 0)
-                            SH2WriteNotify(context, destInc < 0 ? *dmac->DAR : *dmac->DAR - i * destInc,
-                                           i * abs(destInc));
-                        return;
+                for (i = 0; i < *TCR; i += 4) {
+                    for (i2 = 0; i2 < 4; i2++) {
+                        buffer[i2] = MappedMemoryReadLong(context, ((*SAR + (i2 << 2)) & 0x07FFFFFC));
+                    }
+                    *SAR += 0x10;
+                    for (i2 = 0; i2 < 4; i2++) {
+                        MappedMemoryWriteLong(context, *DAR & 0x07FFFFFC, buffer[i2]);
+                        *DAR += destInc;
                     }
                 }
-                break;
+                *TCR = 0;
+            } break;
         }
-        if (context->cacheOn == 0)
-            SH2WriteNotify(context, destInc < 0 ? *dmac->DAR : *dmac->DAR - i * destInc, i * abs(destInc));
+        SH2WriteNotify(context, destInc < 0 ? *DAR : *DAR - i * destInc, i * abs(destInc));
     }
+
+    if (*CHCR & 0x4)
+        SH2SendInterrupt(context, *VCRDMA, (context->onchip.IPRA & 0xF00) >> 8);
+
+    // Set Transfer End bit
+    *CHCR |= 0x2;
 }
 
 extern u8 execInterrupt;
@@ -2016,7 +1659,6 @@ extern u8 execInterrupt;
 
 void FASTCALL MSH2InputCaptureWriteWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u16 data)
 {
-    FRTExec(MSH2);
     // Set Input Capture Flag
     MSH2->onchip.FTCSR |= 0x80;
 
@@ -2036,7 +1678,6 @@ void FASTCALL MSH2InputCaptureWriteWord(SH2_struct *context, UNUSED u8 *memory, 
 
 void FASTCALL SSH2InputCaptureWriteWord(SH2_struct *context, UNUSED u8 *memory, UNUSED u32 addr, UNUSED u16 data)
 {
-    FRTExec(SSH2);
     // Set Input Capture Flag
     SSH2->onchip.FTCSR |= 0x80;
 
@@ -2068,7 +1709,6 @@ void SCITransmitByte(UNUSED u8 val)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-
 int SH2SaveState(SH2_struct *context, void **stream)
 {
     int            offset;
@@ -2116,657 +1756,48 @@ int SH2SaveState(SH2_struct *context, void **stream)
 
     return MemStateFinishHeader(stream, offset);
 }
-
 //////////////////////////////////////////////////////////////////////////////
 
-int SH2LoadState(SH2_struct *context, const void *stream, UNUSED int version, int size)
+int SH2LoadState(SH2_struct *context, FILE *fp, UNUSED int version, int size)
 {
+    IOCheck_struct check = {0, 0};
     sh2regs_struct regs;
 
     SH2Reset(context);
 
     if (context->isslave == 1)
-        MemStateRead((void *)&yabsys.IsSSH2Running, 1, 1, stream);
+        yread(&check, (void *)&yabsys.IsSSH2Running, 1, 1, fp);
 
     // Read registers
-    MemStateRead((void *)&regs, sizeof(sh2regs_struct), 1, stream);
+    yread(&check, (void *)&regs, sizeof(sh2regs_struct), 1, fp);
     SH2SetRegisters(context, &regs);
 
     // Read onchip registers
-    if (version < 2) {
-        MemStateRead((void *)&context->onchip, sizeof(Onchip_struct) - sizeof(u32) /*WTCSRM*/, 1, stream);
-    } else {
-        MemStateRead((void *)&context->onchip, sizeof(Onchip_struct), 1, stream);
-    }
+    yread(&check, (void *)&context->onchip, sizeof(Onchip_struct), 1, fp);
 
     // Read internal variables
-    MemStateRead((void *)&context->frc, sizeof(context->frc), 1, stream);
+    yread(&check, (void *)&context->frc, sizeof(context->frc), 1, fp);
     {    // FIXME: backward compatibility hack (see SH2SaveState() comment)
         u32 div            = context->frc.shift;
         context->frc.shift = 0;
         while ((div >>= 1) != 0)
             context->frc.shift++;
     }
-    MemStateRead((void *)context->interrupts, sizeof(interrupt_struct), MAX_INTERRUPTS, stream);
-    MemStateRead((void *)&context->NumberOfInterrupts, sizeof(u32), 1, stream);
+    yread(&check, (void *)context->interrupts, sizeof(interrupt_struct), MAX_INTERRUPTS, fp);
+    yread(&check, (void *)&context->NumberOfInterrupts, sizeof(u32), 1, fp);
     SH2Core->SetInterrupts(context, context->NumberOfInterrupts, context->interrupts);
-    MemStateRead((void *)context->AddressArray, sizeof(u32), 0x100, stream);
-    MemStateRead((void *)context->DataArray, sizeof(u8), 0x1000, stream);
-    MemStateRead((void *)&context->delay, sizeof(u32), 1, stream);
-    MemStateRead((void *)&context->cycles, sizeof(u32), 1, stream);
-    MemStateRead((void *)&context->isslave, sizeof(u8), 1, stream);
-    MemStateRead((void *)&context->instruction, sizeof(u16), 1, stream);
-
-    if (version >= 3) {
-        MemStateRead((void *)&context->dma_ch0.copy_clock, sizeof(u32), 1, stream);
-        MemStateRead((void *)&context->dma_ch1.copy_clock, sizeof(u32), 1, stream);
-    }
+    yread(&check, (void *)context->AddressArray, sizeof(u32), 0x100, fp);
+    yread(&check, (void *)context->DataArray, sizeof(u8), 0x1000, fp);
+    yread(&check, (void *)&context->delay, sizeof(u32), 1, fp);
+    yread(&check, (void *)&context->cycles, sizeof(u32), 1, fp);
+    yread(&check, (void *)&context->isslave, sizeof(u8), 1, fp);
+    yread(&check, (void *)&context->instruction, sizeof(u16), 1, fp);
 
     return size;
 }
-
-
 
 void SH2DumpHistory(SH2_struct *context)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////
-
-// DEBUG stuff
-
-//////////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////////////
-
-void SH2SetBreakpointCallBack(SH2_struct *context, void (*func)(void *, u32, void *), void *userdata)
-{
-    context->bp.BreakpointCallBack = func;
-    context->bp.BreakpointUserData = userdata;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-int SH2AddCodeBreakpoint(SH2_struct *context, u32 addr)
-{
-    int i;
-
-    if (context->bp.numcodebreakpoints < MAX_BREAKPOINTS) {
-        // Make sure it isn't already on the list
-        for (i = 0; i < context->bp.numcodebreakpoints; i++) {
-            if (addr == context->bp.codebreakpoint[i].addr)
-                return -1;
-        }
-
-        context->bp.codebreakpoint[context->bp.numcodebreakpoints].addr = addr;
-        context->bp.numcodebreakpoints++;
-
-        return 0;
-    }
-
-    return -1;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static void SH2SortCodeBreakpoints(SH2_struct *context)
-{
-    int i, i2;
-    u32 tmp;
-
-    for (i = 0; i < (MAX_BREAKPOINTS - 1); i++) {
-        for (i2 = i + 1; i2 < MAX_BREAKPOINTS; i2++) {
-            if (context->bp.codebreakpoint[i].addr == 0xFFFFFFFF && context->bp.codebreakpoint[i2].addr != 0xFFFFFFFF) {
-                tmp                                 = context->bp.codebreakpoint[i].addr;
-                context->bp.codebreakpoint[i].addr  = context->bp.codebreakpoint[i2].addr;
-                context->bp.codebreakpoint[i2].addr = tmp;
-            }
-        }
-    }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-int SH2DelCodeBreakpoint(SH2_struct *context, u32 addr)
-{
-    int i, i2;
-
-    LOG("Deleting breakpoint %08X...\n", addr);
-
-    if (context->bp.numcodebreakpoints > 0) {
-        for (i = 0; i < context->bp.numcodebreakpoints; i++) {
-            if (context->bp.codebreakpoint[i].addr == addr) {
-                context->bp.codebreakpoint[i].addr = 0xFFFFFFFF;
-                SH2SortCodeBreakpoints(context);
-                context->bp.numcodebreakpoints--;
-
-                LOG("Remaining breakpoints: \n");
-
-                for (i2 = 0; i2 < context->bp.numcodebreakpoints; i2++) {
-                    LOG("%08X", context->bp.codebreakpoint[i2].addr);
-                }
-
-                return 0;
-            }
-        }
-    }
-
-    LOG("Failed deleting breakpoint\n");
-
-    return -1;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-codebreakpoint_struct *SH2GetBreakpointList(SH2_struct *context)
-{
-    return context->bp.codebreakpoint;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void SH2ClearCodeBreakpoints(SH2_struct *context)
-{
-    int i;
-    for (i = 0; i < MAX_BREAKPOINTS; i++) {
-        context->bp.codebreakpoint[i].addr = 0xFFFFFFFF;
-    }
-
-    context->bp.numcodebreakpoints = 0;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static u8 FASTCALL SH2MemoryBreakpointReadByte(SH2_struct *sh, u8 *mem, u32 addr)
-{
-    int i;
-
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (sh->bp.memorybreakpoint[i].addr == (addr & 0x0FFFFFFF)) {
-            if (sh->bp.BreakpointCallBack && sh->bp.inbreakpoint == 0) {
-                sh->bp.inbreakpoint = 1;
-                sh->bp.BreakpointCallBack(sh, 0, sh->bp.BreakpointUserData);
-                sh->bp.inbreakpoint = 0;
-            }
-
-            return sh->bp.memorybreakpoint[i].oldreadbyte(sh, mem, addr);
-        }
-    }
-
-    // Use the closest match if address doesn't match
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (((sh->bp.memorybreakpoint[i].addr >> 16) & 0xFFF) == ((addr >> 16) & 0xFFF))
-            return sh->bp.memorybreakpoint[i].oldreadbyte(sh, mem, addr);
-    }
-
-    return 0;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static u16 FASTCALL SH2MemoryBreakpointReadWord(SH2_struct *sh, u8 *mem, u32 addr)
-{
-    int i;
-
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (sh->bp.memorybreakpoint[i].addr == (addr & 0x0FFFFFFF)) {
-            if (sh->bp.BreakpointCallBack && sh->bp.inbreakpoint == 0) {
-                sh->bp.inbreakpoint = 1;
-                sh->bp.BreakpointCallBack(sh, 0, sh->bp.BreakpointUserData);
-                sh->bp.inbreakpoint = 0;
-            }
-
-            return sh->bp.memorybreakpoint[i].oldreadword(sh, mem, addr);
-        }
-    }
-
-    // Use the closest match if address doesn't match
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (((sh->bp.memorybreakpoint[i].addr >> 16) & 0xFFF) == ((addr >> 16) & 0xFFF))
-            return sh->bp.memorybreakpoint[i].oldreadword(sh, mem, addr);
-    }
-    return 0;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static u32 FASTCALL SH2MemoryBreakpointReadLong(SH2_struct *sh, u8 *mem, u32 addr)
-{
-    int i;
-
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (sh->bp.memorybreakpoint[i].addr == (addr & 0x0FFFFFFF)) {
-            if (sh->bp.BreakpointCallBack && sh->bp.inbreakpoint == 0) {
-                sh->bp.inbreakpoint = 1;
-                sh->bp.BreakpointCallBack(sh, 0, sh->bp.BreakpointUserData);
-                sh->bp.inbreakpoint = 0;
-            }
-
-            return sh->bp.memorybreakpoint[i].oldreadlong(sh, mem, addr);
-        }
-    }
-
-    // Use the closest match if address doesn't match
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (((sh->bp.memorybreakpoint[i].addr >> 16) & 0xFFF) == ((addr >> 16) & 0xFFF))
-            return sh->bp.memorybreakpoint[i].oldreadlong(sh, mem, addr);
-    }
-    return 0;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static void FASTCALL SH2MemoryBreakpointWriteByte(SH2_struct *sh, u8 *mem, u32 addr, u8 val)
-{
-    int i;
-
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (sh->bp.memorybreakpoint[i].addr == (addr & 0x0FFFFFFF)) {
-            if (sh->bp.BreakpointCallBack && sh->bp.inbreakpoint == 0) {
-                sh->bp.inbreakpoint = 1;
-                sh->bp.BreakpointCallBack(sh, 0, sh->bp.BreakpointUserData);
-                sh->bp.inbreakpoint = 0;
-            }
-
-            sh->bp.memorybreakpoint[i].oldwritebyte(sh, mem, addr, val);
-            return;
-        }
-    }
-
-    // Use the closest match if address doesn't match
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (((sh->bp.memorybreakpoint[i].addr >> 16) & 0xFFF) == ((addr >> 16) & 0xFFF)) {
-            sh->bp.memorybreakpoint[i].oldwritebyte(sh, mem, addr, val);
-            return;
-        }
-    }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static void FASTCALL SH2MemoryBreakpointWriteWord(SH2_struct *sh, u8 *mem, u32 addr, u16 val)
-{
-    int i;
-
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (sh->bp.memorybreakpoint[i].addr == (addr & 0x0FFFFFFF)) {
-            if (sh->bp.BreakpointCallBack && sh->bp.inbreakpoint == 0) {
-                sh->bp.inbreakpoint = 1;
-                sh->bp.BreakpointCallBack(sh, 0, sh->bp.BreakpointUserData);
-                sh->bp.inbreakpoint = 0;
-            }
-
-            sh->bp.memorybreakpoint[i].oldwriteword(sh, mem, addr, val);
-            return;
-        }
-    }
-
-    // Use the closest match if address doesn't match
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (((sh->bp.memorybreakpoint[i].addr >> 16) & 0xFFF) == ((addr >> 16) & 0xFFF)) {
-            sh->bp.memorybreakpoint[i].oldwriteword(sh, mem, addr, val);
-            return;
-        }
-    }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static void FASTCALL SH2MemoryBreakpointWriteLong(SH2_struct *sh, u8 *mem, u32 addr, u32 val)
-{
-    int i;
-
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (sh->bp.memorybreakpoint[i].addr == (addr & 0x0FFFFFFF)) {
-            if (sh->bp.BreakpointCallBack && sh->bp.inbreakpoint == 0) {
-                sh->bp.inbreakpoint = 1;
-                sh->bp.BreakpointCallBack(sh, 0, sh->bp.BreakpointUserData);
-                sh->bp.inbreakpoint = 0;
-            }
-
-            sh->bp.memorybreakpoint[i].oldwritelong(sh, mem, addr, val);
-            return;
-        }
-    }
-
-    // Use the closest match if address doesn't match
-    for (i = 0; i < sh->bp.nummemorybreakpoints; i++) {
-        if (((sh->bp.memorybreakpoint[i].addr >> 16) & 0xFFF) == ((addr >> 16) & 0xFFF)) {
-            sh->bp.memorybreakpoint[i].oldwritelong(sh, mem, addr, val);
-            return;
-        }
-    }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static int CheckForMemoryBreakpointDupes(SH2_struct *context, u32 addr, u32 flag, int *which)
-{
-    int i;
-
-    for (i = 0; i < context->bp.nummemorybreakpoints; i++) {
-        if (((context->bp.memorybreakpoint[i].addr >> 16) & 0xFFF) == ((addr >> 16) & 0xFFF)) {
-            // See it actually was using the same operation flag
-            if (context->bp.memorybreakpoint[i].flags & flag) {
-                *which = i;
-                return 1;
-            }
-        }
-    }
-
-    return 0;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-int SH2AddMemoryBreakpoint(SH2_struct *context, u32 addr, u32 flags)
-{
-    int which;
-    int i;
-
-    if (flags == 0)
-        return -1;
-
-    if (context->bp.nummemorybreakpoints < MAX_BREAKPOINTS) {
-        // Only regular addresses are supported at this point(Sorry, no onchip!)
-        switch (addr >> 29) {
-            case 0x0:
-            case 0x1:
-            case 0x5:
-                break;
-            default:
-                return -1;
-        }
-
-        addr &= 0x0FFFFFFF;
-
-        // Make sure it isn't already on the list
-        for (i = 0; i < context->bp.nummemorybreakpoints; i++) {
-            if (addr == context->bp.memorybreakpoint[i].addr)
-                return -1;
-        }
-
-        context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].addr  = addr;
-        context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].flags = flags;
-
-        context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldreadbyte = ReadByteList[(addr >> 16) & 0xFFF];
-        context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldreadword = ReadWordList[(addr >> 16) & 0xFFF];
-        context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldreadlong = ReadLongList[(addr >> 16) & 0xFFF];
-        context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldwritebyte =
-            WriteByteList[(addr >> 16) & 0xFFF];
-        context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldwriteword =
-            WriteWordList[(addr >> 16) & 0xFFF];
-        context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldwritelong =
-            WriteLongList[(addr >> 16) & 0xFFF];
-
-        if (flags & BREAK_BYTEREAD) {
-            // Make sure function isn't already being breakpointed by another breakpoint
-            if (!CheckForMemoryBreakpointDupes(context, addr, BREAK_BYTEREAD, &which))
-                ReadByteList[(addr >> 16) & 0xFFF] = &SH2MemoryBreakpointReadByte;
-            else
-                // fix old memory access function
-                context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldreadbyte =
-                    context->bp.memorybreakpoint[which].oldreadbyte;
-        }
-
-        if (flags & BREAK_WORDREAD) {
-            // Make sure function isn't already being breakpointed by another breakpoint
-            if (!CheckForMemoryBreakpointDupes(context, addr, BREAK_WORDREAD, &which))
-                ReadWordList[(addr >> 16) & 0xFFF] = &SH2MemoryBreakpointReadWord;
-            else
-                // fix old memory access function
-                context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldreadword =
-                    context->bp.memorybreakpoint[which].oldreadword;
-        }
-
-        if (flags & BREAK_LONGREAD) {
-            // Make sure function isn't already being breakpointed by another breakpoint
-            if (!CheckForMemoryBreakpointDupes(context, addr, BREAK_LONGREAD, &which))
-                ReadLongList[(addr >> 16) & 0xFFF] = &SH2MemoryBreakpointReadLong;
-            else
-                // fix old memory access function
-                context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldreadword =
-                    context->bp.memorybreakpoint[which].oldreadword;
-        }
-
-        if (flags & BREAK_BYTEWRITE) {
-            // Make sure function isn't already being breakpointed by another breakpoint
-            if (!CheckForMemoryBreakpointDupes(context, addr, BREAK_BYTEWRITE, &which))
-                WriteByteList[(addr >> 16) & 0xFFF] = &SH2MemoryBreakpointWriteByte;
-            else
-                // fix old memory access function
-                context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldwritebyte =
-                    context->bp.memorybreakpoint[which].oldwritebyte;
-        }
-
-        if (flags & BREAK_WORDWRITE) {
-            // Make sure function isn't already being breakpointed by another breakpoint
-            if (!CheckForMemoryBreakpointDupes(context, addr, BREAK_WORDWRITE, &which))
-                WriteWordList[(addr >> 16) & 0xFFF] = &SH2MemoryBreakpointWriteWord;
-            else
-                // fix old memory access function
-                context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldwriteword =
-                    context->bp.memorybreakpoint[which].oldwriteword;
-        }
-
-        if (flags & BREAK_LONGWRITE) {
-            // Make sure function isn't already being breakpointed by another breakpoint
-            if (!CheckForMemoryBreakpointDupes(context, addr, BREAK_LONGWRITE, &which))
-                WriteLongList[(addr >> 16) & 0xFFF] = &SH2MemoryBreakpointWriteLong;
-            else
-                // fix old memory access function
-                context->bp.memorybreakpoint[context->bp.nummemorybreakpoints].oldwritelong =
-                    context->bp.memorybreakpoint[which].oldwritelong;
-        }
-
-        context->bp.nummemorybreakpoints++;
-
-        return 0;
-    }
-
-    return -1;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static void SH2SortMemoryBreakpoints(SH2_struct *context)
-{
-    int                     i, i2;
-    memorybreakpoint_struct tmp;
-
-    for (i = 0; i < (MAX_BREAKPOINTS - 1); i++) {
-        for (i2 = i + 1; i2 < MAX_BREAKPOINTS; i2++) {
-            if (context->bp.memorybreakpoint[i].addr == 0xFFFFFFFF &&
-                context->bp.memorybreakpoint[i2].addr != 0xFFFFFFFF) {
-                memcpy(&tmp, context->bp.memorybreakpoint + i, sizeof(memorybreakpoint_struct));
-                memcpy(context->bp.memorybreakpoint + i, context->bp.memorybreakpoint + i2,
-                       sizeof(memorybreakpoint_struct));
-                memcpy(context->bp.memorybreakpoint + i2, &tmp, sizeof(memorybreakpoint_struct));
-            }
-        }
-    }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-int SH2DelMemoryBreakpoint(SH2_struct *context, u32 addr)
-{
-    int i, i2;
-
-    if (context->bp.nummemorybreakpoints > 0) {
-        for (i = 0; i < context->bp.nummemorybreakpoints; i++) {
-            if (context->bp.memorybreakpoint[i].addr == addr) {
-                // Remove memory access piggyback function to memory access function table
-
-                // Make sure no other breakpoints need the breakpoint functions first
-                for (i2 = 0; i2 < context->bp.nummemorybreakpoints; i2++) {
-                    if (((context->bp.memorybreakpoint[i].addr >> 16) & 0xFFF) ==
-                            ((context->bp.memorybreakpoint[i2].addr >> 16) & 0xFFF) &&
-                        i != i2) {
-                        // Clear the flags
-                        context->bp.memorybreakpoint[i].flags &= ~context->bp.memorybreakpoint[i2].flags;
-                    }
-                }
-
-                if (context->bp.memorybreakpoint[i].flags & BREAK_BYTEREAD)
-                    ReadByteList[(addr >> 16) & 0xFFF] = context->bp.memorybreakpoint[i].oldreadbyte;
-
-                if (context->bp.memorybreakpoint[i].flags & BREAK_WORDREAD)
-                    ReadWordList[(addr >> 16) & 0xFFF] = context->bp.memorybreakpoint[i].oldreadword;
-
-                if (context->bp.memorybreakpoint[i].flags & BREAK_LONGREAD)
-                    ReadLongList[(addr >> 16) & 0xFFF] = context->bp.memorybreakpoint[i].oldreadlong;
-
-                if (context->bp.memorybreakpoint[i].flags & BREAK_BYTEWRITE)
-                    WriteByteList[(addr >> 16) & 0xFFF] = context->bp.memorybreakpoint[i].oldwritebyte;
-
-                if (context->bp.memorybreakpoint[i].flags & BREAK_WORDWRITE)
-                    WriteWordList[(addr >> 16) & 0xFFF] = context->bp.memorybreakpoint[i].oldwriteword;
-
-                if (context->bp.memorybreakpoint[i].flags & BREAK_LONGWRITE)
-                    WriteLongList[(addr >> 16) & 0xFFF] = context->bp.memorybreakpoint[i].oldwritelong;
-
-                context->bp.memorybreakpoint[i].addr = 0xFFFFFFFF;
-                SH2SortMemoryBreakpoints(context);
-                context->bp.nummemorybreakpoints--;
-                return 0;
-            }
-        }
-    }
-
-    return -1;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-memorybreakpoint_struct *SH2GetMemoryBreakpointList(SH2_struct *context)
-{
-    return context->bp.memorybreakpoint;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void SH2ClearMemoryBreakpoints(SH2_struct *context)
-{
-    int i;
-    for (i = 0; i < MAX_BREAKPOINTS; i++) {
-        context->bp.memorybreakpoint[i].addr         = 0xFFFFFFFF;
-        context->bp.memorybreakpoint[i].flags        = 0;
-        context->bp.memorybreakpoint[i].oldreadbyte  = NULL;
-        context->bp.memorybreakpoint[i].oldreadword  = NULL;
-        context->bp.memorybreakpoint[i].oldreadlong  = NULL;
-        context->bp.memorybreakpoint[i].oldwritebyte = NULL;
-        context->bp.memorybreakpoint[i].oldwriteword = NULL;
-        context->bp.memorybreakpoint[i].oldwritelong = NULL;
-    }
-    context->bp.nummemorybreakpoints = 0;
-}
-
-u32 *SH2GetBacktraceList(SH2_struct *context, int *size)
-{
-    *size = context->bt.numbacktrace;
-    return context->bt.addr;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void SH2Step(SH2_struct *context)
-{
-    if (SH2Core) {
-        u32 tmp = SH2Core->GetPC(context);
-
-        // Execute 1 instruction
-        SH2Exec(context, context->cycles + 1);
-
-        // Sometimes it doesn't always execute one instruction,
-        // let's make sure it did
-        if (tmp == SH2Core->GetPC(context))
-            SH2Exec(context, context->cycles + 1);
-    }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-int SH2StepOver(SH2_struct *context, void (*func)(void *, u32, void *))
-{
-    if (SH2Core) {
-        u32 tmp  = SH2Core->GetPC(context);
-        u16 inst = SH2MappedMemoryReadWord(context, context->regs.PC);
-
-        // If instruction is jsr, bsr, or bsrf, step over it
-        if ((inst & 0xF000) == 0xB000 ||    // BSR
-            (inst & 0xF0FF) == 0x0003 ||    // BSRF
-            (inst & 0xF0FF) == 0x400B)      // JSR
-        {
-            // Set breakpoint after at PC + 4
-            context->stepOverOut.callBack = func;
-            context->stepOverOut.type     = SH2ST_STEPOVER;
-            context->stepOverOut.enabled  = 1;
-            context->stepOverOut.address  = context->regs.PC + 4;
-            return 1;
-        } else {
-            // Execute 1 instruction instead
-            SH2Exec(context, context->cycles + 1);
-
-            // Sometimes it doesn't always execute one instruction,
-            // let's make sure it did
-            if (tmp == SH2Core->GetPC(context))
-                SH2Exec(context, context->cycles + 1);
-        }
-    }
-    return 0;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void SH2StepOut(SH2_struct *context, void (*func)(void *, u32, void *))
-{
-    if (SH2Core) {
-        context->stepOverOut.callBack = func;
-        context->stepOverOut.type     = SH2ST_STEPOUT;
-        context->stepOverOut.enabled  = 1;
-        context->stepOverOut.address  = 0;
-    }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-int SH2TrackInfLoopInit(SH2_struct *context)
-{
-    context->trackInfLoop.maxNum = 100;
-    if ((context->trackInfLoop.match =
-             (tilInfo_struct *)calloc(context->trackInfLoop.maxNum, sizeof(tilInfo_struct))) == NULL)
-        return -1;
-
-    return 0;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void SH2TrackInfLoopDeInit(SH2_struct *context)
-{
-    if (context->trackInfLoop.match)
-        free(context->trackInfLoop.match);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void SH2TrackInfLoopStart(SH2_struct *context)
-{
-    context->trackInfLoop.enabled = 1;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void SH2TrackInfLoopStop(SH2_struct *context)
-{
-    context->trackInfLoop.enabled = 0;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void SH2TrackInfLoopClear(SH2_struct *context)
-{
-    memset(context->trackInfLoop.match, 0, sizeof(tilInfo_struct) * context->trackInfLoop.maxNum);
-    context->trackInfLoop.num = 0;
-}

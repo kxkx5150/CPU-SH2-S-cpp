@@ -9,7 +9,7 @@
 #include <SDL2/SDL_keycode.h>
 
 #include "sh2core.h"
-#include "sh2int_kronos.h"
+#include "sh2int.h"
 #include "yui.h"
 #include "peripheral.h"
 #include "yabause.h"
@@ -30,11 +30,10 @@
 #include "debug.h"
 #include "vdp1.h"
 #ifdef DYNAREC_KRONOS
-#include "sh2int_kronos.h"
+#include "sh2int.h"
 #endif
 #include <stdio.h>
 #include "sh2core.h"
-
 
 #define AR                (4.0f / 3.0f)
 #define WINDOW_WIDTH      600
@@ -47,11 +46,10 @@
 #define OSDCORE_NANOVG    3
 #define OSDCORE_DEFAULT   OSDCORE_NANOVG
 
-
 typedef void (*k_callback)(unsigned int key, unsigned char state);
 
 M68K_struct           *M68KCoreList[] = {&M68KDummy, &M68KMusashi, NULL};
-SH2Interface_struct   *SH2CoreList[]  = {&SH2KronosInterpreter, &SH2KronosInterpreter, &SH2KronosInterpreter, NULL};
+SH2Interface_struct   *SH2CoreList[]  = {&SH2Interpreter, &SH2Interpreter, &SH2Interpreter, NULL};
 PerInterface_struct   *PERCoreList[]  = {&PERDummy, &PERLinuxJoy, NULL};
 CDInterface           *CDCoreList[]   = {&DummyCD, &ISOCD, &ArchCD, NULL};
 SoundInterface_struct *SNDCoreList[]  = {&SNDDummy, NULL};
@@ -74,7 +72,6 @@ static char          stvgamepath[256] = "\0";
 static char          stvbiospath[256] = "\0";
 static k_callback    k_call           = NULL;
 static unsigned char inputMap[512];
-
 
 int platform_YuiRevokeOGLOnThisThread()
 {
@@ -310,7 +307,6 @@ int main(int argc, char *argv[])
 
     // yinit.carttype    = CART_DRAM8MBIT;
     // yinit.stvgamepath = argv[1];
-
 
     if (YabauseInit(&yinit) != 0) {
         printf("YabauseInit error \n\r");

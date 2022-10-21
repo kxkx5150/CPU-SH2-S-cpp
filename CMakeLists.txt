@@ -70,7 +70,7 @@ set(kronos_HEADERS
     src/core/video/core/vidogl.h
     src/core/video/common/vidshared.h
     src/core/video/common/ygl.h
-    src/core/sh2/sh2int_kronos.h
+    src/core/sh2/sh2int.h
     src/core/peripheral/peripheral.h
     src/ctrl/core.h
     src/ctrl/yabause.h
@@ -112,7 +112,7 @@ set(kronos_SOURCES
 set(kronos_SOURCES
     ${kronos_SOURCES}
     src/core/sh2/sh2int.cpp
-    src/core/sh2/sh2_opcodes.cpp
+    # src/core/sh2/sh2_opcodes.cpp
 )
 
 if(YAB_WANT_VDP1RAM_CS_ASYNC)

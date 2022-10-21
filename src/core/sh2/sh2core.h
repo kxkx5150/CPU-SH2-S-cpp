@@ -28,7 +28,6 @@
 extern "C" {
 #endif
 
-
 #define SH2CORE_DEFAULT -1
 #define MAX_INTERRUPTS  50
 
@@ -159,7 +158,6 @@ typedef struct
     u8  DRCR0;      // 0xFFFFFE71
     u8  DRCR1;      // 0xFFFFFE72
     u8  WTCSR;      // 0xFFFFFE80
-    u32 WTCSRM;     // 0xFFFFFE80 mirror
     u8  WTCNT;      // 0xFFFFFE81
     u8  RSTCSR;     // 0xFFFFFE83
     u8  SBYCR;      // 0xFFFFFE91
@@ -320,7 +318,6 @@ typedef struct
     u16 RTCSR;      // 0xFFFFFFF0
     u16 RTCNT;      // 0xFFFFFFF4
     u16 RTCOR;      // 0xFFFFFFF8
-    u32 CHCR0M;
 } Onchip_struct;
 
 typedef struct
@@ -334,13 +331,6 @@ enum SH2STEPTYPE
     SH2ST_STEPOVER,
     SH2ST_STEPOUT
 };
-
-typedef struct
-{
-    u32 addr;
-    u64 count;
-} tilInfo_struct;
-
 typedef struct
 {
     u32 *CHCR;
@@ -351,87 +341,27 @@ typedef struct
     u32 *VCRDMA;
     int  copy_clock;
 } Dmac;
-
-
-// DEBUG stuff
-
-typedef struct SH2_struct_s SH2_struct;
-
-#define BREAK_BYTEREAD  0x1
-#define BREAK_WORDREAD  0x2
-#define BREAK_LONGREAD  0x4
-#define BREAK_BYTEWRITE 0x8
-#define BREAK_WORDWRITE 0x10
-#define BREAK_LONGWRITE 0x20
-
-#define MAX_BREAKPOINTS 10
-
-typedef void(FASTCALL *writebytefunc)(SH2_struct *context, u8 *, u32, u8);
-typedef void(FASTCALL *writewordfunc)(SH2_struct *context, u8 *, u32, u16);
-typedef void(FASTCALL *writelongfunc)(SH2_struct *context, u8 *, u32, u32);
-
-typedef u8(FASTCALL *readbytefunc)(SH2_struct *context, u8 *, u32);
-typedef u16(FASTCALL *readwordfunc)(SH2_struct *context, u8 *, u32);
-typedef u32(FASTCALL *readlongfunc)(SH2_struct *context, u8 *, u32);
-
 typedef struct
 {
     u32 addr;
-} codebreakpoint_struct;
-
-typedef struct
-{
-    u32           addr;
-    u32           flags;
-    readbytefunc  oldreadbyte;
-    readwordfunc  oldreadword;
-    readlongfunc  oldreadlong;
-    writebytefunc oldwritebyte;
-    writewordfunc oldwriteword;
-    writelongfunc oldwritelong;
-} memorybreakpoint_struct;
-
-void                   SH2SetBreakpointCallBack(SH2_struct *context, void (*func)(void *, u32, void *), void *userdata);
-int                    SH2AddCodeBreakpoint(SH2_struct *context, u32 addr);
-int                    SH2DelCodeBreakpoint(SH2_struct *context, u32 addr);
-codebreakpoint_struct *SH2GetBreakpointList(SH2_struct *context);
-void                   SH2ClearCodeBreakpoints(SH2_struct *context);
-
-u32 *SH2GetBacktraceList(SH2_struct *context, int *size);
-
-int                      SH2AddMemoryBreakpoint(SH2_struct *context, u32 addr, u32 flags);
-int                      SH2DelMemoryBreakpoint(SH2_struct *context, u32 addr);
-memorybreakpoint_struct *SH2GetMemoryBreakpointList(SH2_struct *context);
-void                     SH2ClearMemoryBreakpoints(SH2_struct *context);
-
-void SH2Step(SH2_struct *context);
-int  SH2StepOver(SH2_struct *context, void (*func)(void *, u32, void *));
-void SH2StepOut(SH2_struct *context, void (*func)(void *, u32, void *));
-
-int  SH2TrackInfLoopInit(SH2_struct *context);
-void SH2TrackInfLoopDeInit(SH2_struct *context);
-void SH2TrackInfLoopStart(SH2_struct *context);
-void SH2TrackInfLoopStop(SH2_struct *context);
-void SH2TrackInfLoopClear(SH2_struct *context);
-
-typedef struct
-{
-    codebreakpoint_struct   codebreakpoint[MAX_BREAKPOINTS];
-    int                     numcodebreakpoints;
-    memorybreakpoint_struct memorybreakpoint[MAX_BREAKPOINTS];
-    int                     nummemorybreakpoints;
-    void (*BreakpointCallBack)(void *, u32, void *);
-    void *BreakpointUserData;
-    int   inbreakpoint;
-    int   breaknow;
-} breakpoint_struct;
-
+    u64 count;
+} tilInfo_struct;
 typedef struct
 {
     u32 addr[256];
     int numbacktrace;
 } backtrace_struct;
-// END debug
+// typedef struct
+// {
+//     codebreakpoint_struct   codebreakpoint[MAX_BREAKPOINTS];
+//     int                     numcodebreakpoints;
+//     memorybreakpoint_struct memorybreakpoint[MAX_BREAKPOINTS];
+//     int                     nummemorybreakpoints;
+//     void (*BreakpointCallBack)(void *, u32, void *);
+//     void *BreakpointUserData;
+//     int   inbreakpoint;
+//     int   breaknow;
+// } breakpoint_struct;
 
 typedef struct SH2_struct_s
 {
@@ -472,13 +402,13 @@ typedef struct SH2_struct_s
     void *ext;
 
     u8 cacheOn;
-#ifdef USE_CACHE
+    // #ifdef USE_CACHE
     u8  nbCacheWay;
     u8  cacheLRU[64];
     u8  cacheData[64][4][16];
     u8  tagWay[64][0x80000];
     u32 cacheTagArray[64][4];
-#endif
+    // #endif
     u32 cycleFrac;
     u32 cycleLost;
     int cdiff;
@@ -490,8 +420,8 @@ typedef struct SH2_struct_s
     Dmac dma_ch1;
 
     // DEBUG Stuff
-    backtrace_struct  bt;
-    breakpoint_struct bp;
+    backtrace_struct bt;
+    // breakpoint_struct bp;
     struct
     {
         u8              enabled;
@@ -549,7 +479,7 @@ typedef struct
     int (*GetInterrupts)(SH2_struct *context, interrupt_struct interrupts[MAX_INTERRUPTS]);
     void (*SetInterrupts)(SH2_struct *context, int num_interrupts, const interrupt_struct interrupts[MAX_INTERRUPTS]);
 
-    void (*WriteNotify)(SH2_struct *context, u32 start, u32 length);
+    void (*WriteNotify)(u32 start, u32 length);
     void (*AddCycle)(SH2_struct *context, u32 value);
 } SH2Interface_struct;
 
@@ -573,7 +503,6 @@ void SH2WriteNotify(SH2_struct *context, u32 start, u32 length);
 
 void SH2DumpHistory(SH2_struct *context);
 
-
 int BackupHandled(SH2_struct *sh, u32 addr);
 int isBackupHandled(u32 addr);
 
@@ -588,6 +517,7 @@ void CacheWriteLong(SH2_struct *context, u8 *mem, u32 addr, u32 val);
 void CacheInvalidate(SH2_struct *context, u32 addr);
 
 void DMAExec(SH2_struct *context);
+void DMATransfer(SH2_struct *context, u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA);
 
 u8 FASTCALL   OnchipReadByte(SH2_struct *context, u32 addr);
 u16 FASTCALL  OnchipReadWord(SH2_struct *context, u32 addr);
@@ -610,7 +540,7 @@ void FASTCALL MSH2InputCaptureWriteWord(SH2_struct *context, UNUSED u8 *mem, u32
 void FASTCALL SSH2InputCaptureWriteWord(SH2_struct *context, UNUSED u8 *mem, u32 addr, u16 data);
 
 int SH2SaveState(SH2_struct *context, void **stream);
-int SH2LoadState(SH2_struct *context, const void *stream, int version, int size);
+int SH2LoadState(SH2_struct *context, FILE *fp, int version, int size);
 
 extern SH2Interface_struct SH2Dyn;
 extern SH2Interface_struct SH2DynDebug;

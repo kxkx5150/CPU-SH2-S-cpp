@@ -21,6 +21,7 @@
 /*! \file yabause.c
     \brief Yabause main emulation functions and interface for the ports
 */
+#include <cstdio>
 #include <sys/types.h>
 #include <sys/time.h>
 #ifdef WIN32
@@ -189,6 +190,7 @@ int YabauseSh2Init(yabauseinit_struct *init)
         YabSetError(YAB_ERR_CANNOTINIT, _("SH2"));
         return -1;
     }
+
     if ((BiosRom = T2MemoryInit(0x80000)) == NULL)
         return -1;
     if ((HighWram = T2MemoryInit(0x100000)) == NULL)
@@ -309,7 +311,6 @@ int YabauseInit(yabauseinit_struct *init)
         YabSetError(YAB_ERR_CANNOTINIT, _("Video"));
         return -1;
     }
-
 
     // Initialize input core
     if (PerInit(init->percoretype) != 0) {
